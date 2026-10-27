@@ -39,9 +39,11 @@ fi
 pid=$!
 sleep 3
 vmmap -w "$pid" 2>/dev/null | grep -Eo '/[^ ]+\.(dylib|so)' | sort -u >"$LOG/mapped.txt"
+# The hardened runtime (release builds) ignores DYLD_PRINT_LIBRARIES and blocks vmmap; lsof still lists mapped images.
+lsof -p "$pid" -Fn 2>/dev/null | sed -n 's/^n//p' | grep -E '\.(dylib|so)$|\.framework/' | sort -u >>"$LOG/mapped.txt"
 if kill -0 "$pid" 2>/dev/null; then alive=yes; else alive=no; fail=1; fi
 kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
-loaded=$(grep -c 'dyld\[' "$LOG/dyld.log")
+loaded=$(( $(grep -c 'dyld\[' "$LOG/dyld.log") + $(grep -c . "$LOG/mapped.txt") ))
 brew=$(cat "$LOG/dyld.log" "$LOG/mapped.txt" | grep -c /opt/homebrew)
 echo "launch: alive after 3 s = $alive, images loaded = $loaded, /opt/homebrew images = $brew (log $LOG)"
 grep -Eo 'Contents/(Frameworks|MacOS)/[^ ]+' "$LOG/dyld.log" | sort -u | sed 's/^/  /'

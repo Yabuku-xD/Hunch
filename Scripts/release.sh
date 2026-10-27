@@ -33,6 +33,12 @@ fi
 # the bundled llama.framework; the only entitlement is the one that allows it.
 say "codesign (ad-hoc, hardened runtime)"
 codesign --force --sign - --options runtime --timestamp=none "$APP/Contents/Frameworks/llama.framework"
+# Re-signing rewrites the framework binary, so refresh its sha256 stamp before the app signature seals Resources.
+STAMP=$APP/Contents/Resources/native-libs.txt
+{
+  head -1 "$STAMP"
+  ( cd "$APP/Contents" && shasum -a 256 "Frameworks/llama.framework/Versions/A/llama" )
+} > "$STAMP.new" && mv "$STAMP.new" "$STAMP"
 codesign --force --sign - --options runtime --timestamp=none --entitlements Scripts/release.entitlements \
   "$APP/Contents/Helpers/$NAME Helper.app"
 codesign --force --sign - --options runtime --timestamp=none --entitlements Scripts/release.entitlements "$APP"

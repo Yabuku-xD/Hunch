@@ -556,18 +556,18 @@ private struct Gutter: View {
                 Rectangle()
                     .fill(.separator)
                     .frame(width: 0.5)
-                    .padding(.top, row.isFirstInGroup ? 26 : 0)
+                    .padding(.top, row.isFirstInGroup ? row.height / 2 + 12 : 0)
                     .padding(.bottom, row.isLastInGroup ? 6 : 0)
                     .frame(maxHeight: .infinity)
             }
+            // Centred on the row's icon tile (rows centre their content vertically).
             if let slot {
                 KeyCap("\(slot)", size: 10)
-                    .padding(.top, 10)
+                    .frame(width: theme.gutter, height: row.height)
             } else if row.isFirstInGroup {
                 GroupGlyph(group: row.group, size: 12)
                     .foregroundStyle(.tertiary)
-                    .frame(height: 20)
-                    .padding(.top, 6)
+                    .frame(width: theme.gutter, height: row.height)
                     .accessibilityLabel(row.group.title)
             }
         }
@@ -581,11 +581,19 @@ struct GroupGlyph: View {
     let size: CGFloat
 
     var body: some View {
-        if group.isMeaning {
-            Text("≈").font(.system(size: size + 2, weight: .semibold))
-        } else {
-            Image(systemName: group.symbol).font(.system(size: size, weight: .medium))
+        // One square box per glyph, so wide symbols (photo, waveform) and the ≈ sign share one centre and size.
+        Group {
+            if group.isMeaning {
+                Text("≈").font(.system(size: size + 2, weight: .semibold))
+            } else {
+                Image(systemName: group.symbol)
+                    .resizable()
+                    .fontWeight(.medium)
+                    .scaledToFit()
+                    .frame(width: size, height: size)
+            }
         }
+        .frame(width: size + 4, height: size + 4)
     }
 }
 
@@ -611,7 +619,7 @@ private struct Leading: View {
                     .interpolation(.high)
                     .frame(width: theme.proof, height: theme.proof)
                     .overlay(alignment: .bottomTrailing) { timeCaption }
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                     // Flattened to pixels: as glass content the scrim was re-inked by the dark slab's vibrancy and
                     // nearly vanished on bright frames. Rasterised, it composites like the frame itself.
                     .drawingGroup()
@@ -627,11 +635,11 @@ private struct Leading: View {
                 Circle()
                     .fill(.secondary)
                     .frame(width: 4, height: 4)
-                    .offset(y: theme.icon / 2 + 3)
+                    .offset(y: theme.icon / 2 + 2)
                     .accessibilityHidden(true)
             }
         }
-        .frame(width: theme.leading, height: wantsProof ? theme.proof : theme.icon)
+        .frame(width: theme.leading, height: theme.icon)
         .accessibilityHidden(true)
     }
 
@@ -639,13 +647,15 @@ private struct Leading: View {
     @ViewBuilder private var timeCaption: some View {
         if let time = result.match?.location.time, FileKind.of(result.item.path) == .video {
             Text(DisplayText.timecode(time))
-                .font(.system(size: 9, weight: .semibold).monospacedDigit())
+                .font(.system(size: 8, weight: .semibold).monospacedDigit())
+                .lineLimit(1)
+                .fixedSize()
                 // Media caption: it sits on arbitrary frame pixels, not on glass, so it is a fixed scrim chip
                 // (the video-player convention) in both appearances, never an adaptive ink.
                 .foregroundStyle(.white)
-                .padding(.horizontal, 3)
+                .padding(.horizontal, 2)
                 .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 3, style: .continuous))
-                .padding(3)
+                .padding(2)
         }
     }
 }

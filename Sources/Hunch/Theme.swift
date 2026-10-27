@@ -12,7 +12,7 @@ struct Theme: Equatable, Sendable {
     let cutRadius: CGFloat = 6
     let padding: CGFloat
     let gutter: CGFloat
-    /// Leading column: holds the 28/24 pt icon or the 44/40 pt proof, so titles align across row types.
+    /// Leading column: holds the 32/28 pt tile (icon or proof crop, one size for every row), so titles align.
     let leading: CGFloat
     let icon: CGFloat
     let proof: CGFloat
@@ -42,12 +42,12 @@ struct Theme: Equatable, Sendable {
 
     static let large = Theme(
         slabWidth: 720, resultsHeight: 456, bandHeight: 52, outerRadius: 22, padding: 12, gutter: 24, leading: 44,
-        icon: 28, proof: 44, iconGap: 12, nameContent: 40, evidenceContent: 56, titleSize: 14, querySize: 21,
+        icon: 32, proof: 32, iconGap: 12, nameContent: 40, evidenceContent: 56, titleSize: 14, querySize: 21,
         chipHeight: 30, footerHeight: 28)
 
     static let compact = Theme(
         slabWidth: 680, resultsHeight: 392, bandHeight: 48, outerRadius: 20, padding: 10, gutter: 22, leading: 40,
-        icon: 24, proof: 40, iconGap: 10, nameContent: 36, evidenceContent: 52, titleSize: 13.5, querySize: 20,
+        icon: 28, proof: 28, iconGap: 10, nameContent: 36, evidenceContent: 52, titleSize: 13.5, querySize: 20,
         chipHeight: 28, footerHeight: 26)
 
     /// The same tokens with a shorter results area (`PanelLayout` step 4).

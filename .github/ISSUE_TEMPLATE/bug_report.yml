@@ -1,0 +1,67 @@
+name: Bug report
+description: Something does not work as described.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report. Please check that it still happens on the latest release.
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Settings > About, or the Releases page you downloaded from.
+      placeholder: "1.0.0 (42)"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "macOS 27.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: chip
+    attributes:
+      label: Chip
+      options: [M1, M2, M3, M4, M5, Other Apple silicon]
+    validations:
+      required: true
+  - type: dropdown
+    id: model
+    attributes:
+      label: Is the EmbeddingGemma 2 model installed?
+      description: Settings > Search shows the model status.
+      options: ["Yes", "No", "Not sure"]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Press the shortcut
+        2. Type "invoice"
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Run this in Terminal right after the problem and paste the output. Remove any file names you do not want to share.
+        `log show --predicate 'subsystem == "dev.betterspotlight"' --last 10m --info`
+      render: text

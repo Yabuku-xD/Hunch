@@ -1,0 +1,6 @@
+module CLlama [system] {
+    header "shim.h"
+    link "llama"
+    link "mtmd"
+    export *
+}

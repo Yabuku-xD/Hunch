@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    # macOS 27 image with Xcode 27 (Swift 6.4), the toolchain the project is developed with. Preview label.
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Guard against model files and large files
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -E '\.(gguf|partial)$'; then echo "::error::model files must never be committed"; exit 1; fi
+          big=$(git ls-files -z | xargs -0 du -k | awk '$1 > 1024 { print }')
+          if [[ -n $big ]]; then echo "$big"; echo "::error::tracked files over 1 MB"; exit 1; fi
+
+      - name: Cache SwiftPM artifacts (llama.cpp xcframework)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build/artifacts
+          key: spm-artifacts-${{ hashFiles('Package.swift', 'Package.resolved') }}
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Build (release)
+        run: swift build -c release
+
+      - name: Test
+        # No model on the runner: the semantic tests skip themselves.
+        run: Scripts/test.sh
+
+      - name: swift-format lint
+        run: swift format lint --strict -r Sources Tests
+
+      - name: Build the app bundle
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          BS_SKIP_LAUNCH_CHECK: "1"
+          BS_SKIP_PERF: "1"
+        run: |
+          Scripts/make-app.sh
+          ditto -c -k --keepParent build/BetterSpotlight.app build/BetterSpotlight-unsigned-arm64.zip
+
+      - name: Upload the app
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: BetterSpotlight-unsigned-arm64
+          path: build/BetterSpotlight-unsigned-arm64.zip
+          retention-days: 14
+
+  compat:
+    # Informational: does the code still compile with Xcode 26 (Swift 6.2/6.3)? Build only.
+    runs-on: macos-26
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build (release)
+        run: |
+          swift --version
+          swift build -c release

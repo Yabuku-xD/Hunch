@@ -1,0 +1,12 @@
+.DS_Store
+/.build/
+/build/
+/.swiftpm/
+/.empryo/
+*.xcodeproj/xcuserdata/
+DerivedData/
+*.gguf
+*.partial
+/dist/
+/u-before-*.png
+*.dSYM/

@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest an improvement to finding apps, files, folders and what is inside them.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        BetterSpotlight does one thing: it finds and opens apps, files and folders, including the text in documents,
+        images, video and audio, and their meaning. Requests outside that scope are closed: clipboard history,
+        calculator, snippets, quicklinks, extensions, AI chat, notes, emoji, window management, system actions,
+        calendar, dictionary, per-app hotkeys and backup or import.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to find or do?
+      description: Describe the situation, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What do you do today instead?
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: This is about searching or acting on apps, files, folders or their contents.
+          required: true

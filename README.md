@@ -104,34 +104,20 @@ issue.
 
 ## Comparison (as of October 2026)
 
-| | Content search | OCR in images | Speech | Semantic | Offline | Open source | Price |
-|---|---|---|---|---|---|---|---|
-| macOS Spotlight | yes | yes | no | n/v | yes | no | free |
-| Raycast | via Spotlight | no | no | no | n/v | no | free / paid |
-| Alfred | via Spotlight | no | no | no | yes | no | free / paid |
-| DigUp | yes | yes | no | yes | yes | yes (MIT) | free |
-| Tinycast | no | no | no | no | yes | yes (AGPL-3.0) | free |
-| Hunch | yes | yes | yes | yes | yes | yes (MIT) | free |
+| | Content search | OCR in images | Speech | Semantic | Offline | Open source | Price | Idle memory | App size | Model download |
+|---|---|---|---|---|---|---|---|---|---|---|
+| macOS Spotlight | yes | yes | no | n/v | yes | no | free | n/p | built in | none |
+| Raycast | via Spotlight | no | no | no | n/v | no | free / paid | 200–300 MB (v1), 350–450 MB (v2) [¹](https://www.raycast.com/blog/a-technical-deep-dive-into-the-new-raycast) | n/p | none |
+| Alfred | via Spotlight | no | no | no | yes | no | free / paid | n/p ("tiny") [²](https://www.alfredapp.com/help/why-choose-alfred) | under 3 MB (v3) [³](https://www.alfredapp.com/changelog/v3) | none |
+| DigUp | yes | yes | no | yes | yes | yes (MIT) | free | n/p (model process quits when done) [⁴](https://github.com/ARahim3/DigUp) | about 20 MB [⁴](https://github.com/ARahim3/DigUp) | 865 MB |
+| Tinycast | no | no | no | no | yes | yes (AGPL-3.0) | free | under 100 MB [⁵](https://github.com/abue-ammar/tinycast) | n/p | none |
+| Hunch | yes | yes | yes | yes | yes | yes (MIT) | free | 89 MB (634 MB with model loaded) | 18 MB (5.9 MB zip) | 865 MB |
 
-Feature columns only; this table makes no claims about other apps' speed. "n/v" = not verified.
-
-### Resource use
-
-Figures each project publishes about itself, collected October 2026. They come from different machines and
-methods, so read them as rough sizes, not a benchmark. "—" means the project publishes no figure.
-
-| | Memory, idle | Memory, working | App size | Model download | Source |
-|---|---|---|---|---|---|
-| macOS Spotlight | — | — | built in | none | Apple publishes no figures |
-| Raycast v1 | 200–300 MB "after some usage" | — | — | none | [Raycast blog](https://www.raycast.com/blog/a-technical-deep-dive-into-the-new-raycast) |
-| Raycast v2 | 350–450 MB, window hidden | — | — | none | [Raycast blog](https://www.raycast.com/blog/a-technical-deep-dive-into-the-new-raycast) |
-| Alfred 5 | — ("tiny memory footprint") | — | — | none | [alfredapp.com](https://www.alfredapp.com/help/why-choose-alfred) |
-| DigUp (Mac) | — (model process quits when done) | — | about 20 MB | 865 MB | [DigUp README](https://github.com/ARahim3/DigUp) |
-| Tinycast | under 100 MB | — | — | none | [Tinycast README](https://github.com/abue-ammar/tinycast) |
-| Hunch 1.1.0 | 89 MB | 634 MB, model loaded | 18 MB (5.9 MB zip) | 865 MB | measured, see Benchmarks |
-
-Hunch loads the model only to index or to embed a query, and releases it after 5 idle minutes. Spotlight's own
-indexing processes (`mds_stores`, `mdworker_shared`) run on every Mac whether or not you use another launcher.
+"n/v" = not verified. "n/p" = the project publishes no figure. Memory and size figures for other apps are what each
+project publishes about itself, from different machines and methods; read them as rough sizes, not a benchmark.
+Hunch's figures are measured (see Benchmarks). Hunch loads the model only to index or to embed a query, and releases
+it after 5 idle minutes. Spotlight's own indexing processes (`mds_stores`, `mdworker_shared`) run on every Mac
+whether or not you use another launcher. This table makes no claims about other apps' speed.
 
 ## FAQ
 

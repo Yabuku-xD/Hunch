@@ -72,10 +72,13 @@ private func find(_ fts: FullTextIndex, _ q: String, item: UInt32) -> FullTextHi
     }
 }
 
+private let isCI = ProcessInfo.processInfo.environment["CI"] != nil
+
 // MARK: Extraction through the pipeline
 
 @Suite(.serialized) struct ContentPipelineTests {
-    @Test func everyFormatFindsItsPhraseAtTheRightLocation() async throws {
+    @Test(.disabled(if: isCI, "Vision OCR fails on GitHub-hosted macOS runners; tracked in issue #1"))
+    func everyFormatFindsItsPhraseAtTheRightLocation() async throws {
         let dir = Fixture.scratch("formats")
         func u(_ n: String) -> URL { dir.appendingPathComponent(n) }
         // Text: phrase on line 3.
@@ -228,8 +231,9 @@ private func find(_ fts: FullTextIndex, _ q: String, item: UInt32) -> FullTextHi
         await p.stop()
     }
 
-    /// Needs the EmbeddingGemma 2 model + mmproj; fails (never skips) without them.
-    @Test func imageSemanticsAndImageVectors() async throws {
+    /// Needs the EmbeddingGemma 2 model + mmproj; fails (never skips) without them, except in CI where the model is not downloaded.
+    @Test(.disabled(if: isCI, "CI does not download the 865 MB model"))
+    func imageSemanticsAndImageVectors() async throws {
         let model = try #require(Paths.resolveModel(), "EmbeddingGemma 2 model not found")
         let media = try await MediaEmbedder.load(modelURL: model)
         let dir = Fixture.scratch("semantic")

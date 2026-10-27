@@ -147,9 +147,8 @@ private struct StepView: View {
         let chord = model.recorder.shortcut.displayString
         switch step {
         case 1:
-            return "Search apps, files and folders by name, and by what's inside them: words in documents, text in "
-                + "screenshots, speech in recordings, and meaning. Everything runs on this Mac. Nothing you search or "
-                + "index leaves it."
+            return "Find apps, files and folders by name, and by what's inside them. Everything runs on this Mac "
+                + "and stays on it."
         case 2:
             return "\(AppInfo.name) opens with ⌥Space. To use ⌘Space instead, turn off Spotlight's shortcut first, "
                 + "then record ⌘Space here."
@@ -376,8 +375,8 @@ private struct ModelCard: View {
             Text("The EmbeddingGemma 2 model is ready.").copyStyle()
         case .missing:
             Text(
-                "Search by meaning, and find pictures by what's in them, with Google's EmbeddingGemma 2 model (865 MB). "
-                    + "It runs on this Mac. Downloading it is the only time \(AppInfo.name) goes online."
+                "Find files by meaning and pictures by what they show. The 865 MB model runs on this Mac; "
+                    + "the download is \(AppInfo.name)'s only network use."
             )
             .copyStyle()
             Button("Text Only") { model.textOnly() }

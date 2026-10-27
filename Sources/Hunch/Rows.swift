@@ -241,9 +241,9 @@ enum DisplayText {
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%02d:%02d", m, s)
     }
 
-    /// Where inside the file: "p. 3", "line 42", "in image", "frame 01:23", "♪ 02:14", "≈".
+    /// Where inside the file: "p. 3", "line 42", "in image", "frame 01:23", "♪ 02:14", "by meaning".
     static func locator(_ result: SearchResult) -> String? {
-        guard let match = result.match else { return result.source == .semantic ? "≈" : nil }
+        guard let match = result.match else { return result.source == .semantic ? "by meaning" : nil }
         let loc = match.location
         let fileKind = FileKind.of(result.item.path)
         var parts: [String] = []
@@ -262,7 +262,7 @@ enum DisplayText {
         case .transcript:
             parts.append("♪ \(timecode(loc.time ?? 0))")
         case .semantic:
-            parts.append(loc.page.map { "≈ p. \($0)" } ?? "≈")
+            parts.append(loc.page.map { "≈ p. \($0)" } ?? "by meaning")
         case .image:
             if let time = loc.time {
                 parts.append("≈ frame \(timecode(time))")

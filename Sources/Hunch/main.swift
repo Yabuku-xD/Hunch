@@ -1,11 +1,11 @@
 import AppKit
 import HunchCore
 
-// Single instance: an exclusive, non-blocking flock. A second launch asks the running copy to show its panel and exits.
+// Single instance: an exclusive, non-blocking flock. A second launch asks the running copy to open Settings and exits.
 let lockFD = open(NSTemporaryDirectory() + "dev.hunch.lock", O_CREAT | O_RDWR, 0o644)
 if lockFD < 0 || flock(lockFD, LOCK_EX | LOCK_NB) != 0 {
     DistributedNotificationCenter.default().postNotificationName(
-        AppDelegate.showNotification, object: nil, userInfo: nil, deliverImmediately: true)
+        AppDelegate.reopenNotification, object: nil, userInfo: nil, deliverImmediately: true)
     exit(0)
 }
 

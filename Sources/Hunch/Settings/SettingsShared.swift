@@ -217,7 +217,7 @@ struct HotKeyErrorRow: View {
 
 /// Every user-visible model string, pure so it is unit-testable.
 enum ModelCopy {
-    static let licence = "EmbeddingGemma 2 by Google DeepMind, Apache 2.0, from Hugging Face."
+    static let licence = "EmbeddingGemma 2 · Google DeepMind · Apache 2.0"
     static let downloadButton = "Download (865 MB)"
 
     static func megabytes(_ bytes: Int64) -> String {
@@ -268,16 +268,15 @@ enum ModelCopy {
     static func size(_ m: ResolvedModel) -> String { m.hasProjector ? "865 MB" : "296 MB, text only" }
 }
 
-/// The licence line with its two links (11 pt tertiary).
+/// The licence credit and its two links on one line (11 pt tertiary).
 struct ModelLicenceLine: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 12) {
             Text(ModelCopy.licence)
-            HStack(spacing: 12) {
-                Link("Model card", destination: SystemLinks.modelCard)
-                Link("Licence", destination: SystemLinks.apacheLicence)
-            }
+            Link("Model card", destination: SystemLinks.modelCard)
+            Link("Licence", destination: SystemLinks.apacheLicence)
         }
+        .lineLimit(1)
         .font(.system(size: 11))
         .foregroundStyle(.tertiary)
     }

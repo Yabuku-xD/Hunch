@@ -4,7 +4,7 @@ import HunchCore
 /// Owns the hotkey, the menu-bar item, the panel and Settings.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    static let showNotification = Notification.Name("dev.hunch.show")
+    static let reopenNotification = Notification.Name("dev.hunch.reopen")
 
     struct Launch {
         var showPanel = false
@@ -85,9 +85,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         installStatusItem(controller: controller, settings: settings, guide: guide)
 
         DistributedNotificationCenter.default().addObserver(
-            forName: Self.showNotification, object: nil, queue: .main
+            forName: Self.reopenNotification, object: nil, queue: .main
         ) { _ in
-            MainActor.assumeIsolated { controller.show() }
+            MainActor.assumeIsolated { settings.show() }
         }
         NotificationCenter.default.addObserver(forName: .onboardingWantsPanel, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { controller.show() }
@@ -176,10 +176,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else if hotKeyFailed, !guideForced, !launch.showSettings {
             // The only reason Settings opens by itself: the chord could not be registered.
             settings.show(pane: .general)
-        } else if LaunchKind.showsPanel(isLoginItem: loginItem, scripted: scripted) {
-            // P11: a launch by the user (Finder, Dock, `open`) shows the panel; a login-item launch stays in the menu bar.
-            controller.show()
+        } else if LaunchKind.opensSettings(isLoginItem: loginItem, scripted: scripted) {
+            // A launch by the user (Spotlight, Finder, `open`) opens Settings; a login-item launch stays in the menu bar.
+            settings.show()
         }
+    }
+
+    /// Opening the app again while it runs (Spotlight, Finder, Dock) opens Settings; the panel has its shortcut.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        settings?.show()
+        return false
     }
 
     /// The model-missing status: the guide at step 4, or Settings › Index once the guide is complete.
@@ -431,9 +437,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     #endif
 }
 
-/// P11: whether a launch should show the panel. Pure, so it is unit-testable.
+/// Whether a launch should open Settings. Pure, so it is unit-testable.
 enum LaunchKind {
-    static func showsPanel(isLoginItem: Bool, scripted: Bool) -> Bool {
+    static func opensSettings(isLoginItem: Bool, scripted: Bool) -> Bool {
         !isLoginItem && !scripted
     }
 }

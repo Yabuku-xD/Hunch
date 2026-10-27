@@ -19,6 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - App icon: continuous-corner (superellipse) tile, a deeper glass orb with a specular highlight and lit rim, and a
   warm caustic below it.
 - The menu bar item has an autosave name, so its position is kept across launches.
+- Opening Hunch from Spotlight, Finder or the Dock opens Settings, also while it runs; the panel keeps its shortcut.
+  A login-item launch still stays in the menu bar.
+- Welcome and Settings copy fits in two lines at most; the model credit and its links share one line.
+- A result found only by meaning says "by meaning" instead of a lone "≈".
 
 ### Added
 

@@ -28,8 +28,8 @@
 ## Privacy
 
 - Everything runs on your Mac. There is no telemetry and no account.
-- The only network call is the optional model download from Hugging Face, plus "Check on GitHub" in Settings → About
-  if you click it.
+- Network calls: the optional model download from Hugging Face and the update check against GitHub Releases (at
+  most once a day; turn it off in Settings → About). Neither sends anything about your files.
 - The model lives in `~/.hunch/models`, the index in `~/Library/Application Support/Hunch`. Files that look like
   secrets are indexed by name only.
 
@@ -41,6 +41,10 @@
 3. Open **System Settings → Privacy & Security**, scroll to Security, find "Hunch was blocked", click
    **Open Anyway** and authenticate.
 4. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/Hunch.app`.
+
+Updates install from inside the app: Settings → About → **Update and Relaunch**, or the menu bar item. Hunch downloads
+the release from GitHub, checks it against the release's `SHA256SUMS.txt` and its code signature, replaces itself and
+relaunches. The index, the model and your settings stay. No "Open Anyway" is needed for updates.
 
 Permissions: Full Disk Access is optional (it widens what can be indexed); Speech Recognition is only needed for
 transcripts of audio and video.
@@ -73,7 +77,7 @@ swift build
 
 ## Benchmarks
 
-Measured on an Apple M5 Pro with 24 GB of RAM, macOS 27.2, release build, during the 1.1.0 verification runs
+Measured on an Apple M5 Pro with 24 GB of RAM, macOS 27.2, release build, during the 1.0.0 verification runs
 (2026-10-27, seven runs, with `spotlightknowledged` using one core in the background). These are measurements, not
 targets. Panel numbers come from `Scripts/perf-gate.sh` (the app's `--measure` mode, 20 shows and 20 typed
 characters per run); engine numbers come from `hunch-bench` on a synthetic corpus of 200,000 names and 100,000
@@ -123,8 +127,6 @@ whether or not you use another launcher. This table makes no claims about other 
 ## FAQ
 
 - **Why the name?** You rarely remember a file's exact name, only a hunch of what was in it. Hunch finds it from that.
-- **I used BetterSpotlight 1.0.0.** That was this app's first name. Hunch 1.1.0 moves your index, the model and your
-  settings over on first launch. Delete `/Applications/BetterSpotlight.app` afterwards.
 - **Why not just Spotlight?** Hunch searches meaning as well as words, reads speech and video frames, and
   never leaves your Mac.
 - **Why "Open Anyway"?** The app is not notarized (no Developer ID yet). See Install.

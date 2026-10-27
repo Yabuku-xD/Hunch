@@ -272,6 +272,42 @@ struct IndexPane: View {
 
 // MARK: About
 
+/// Settings › About: the update check and, when a newer release exists, one button that installs it and relaunches.
+struct UpdateRow: View {
+    let updater: Updater
+
+    var body: some View {
+        HStack(spacing: 8) {
+            switch updater.phase {
+            case .idle:
+                Text("Version \(AppInfo.version)").foregroundStyle(.secondary)
+            case .checking:
+                ProgressView().controlSize(.small)
+                Text("Checking for updates…").foregroundStyle(.secondary)
+            case .upToDate:
+                Text("\(AppInfo.name) is up to date.").foregroundStyle(.secondary)
+            case .available(let r):
+                Text("\(AppInfo.name) \(r.version) is available.")
+                Link("Release notes", destination: r.page)
+            case .installing(let step):
+                ProgressView().controlSize(.small)
+                Text(step).foregroundStyle(.secondary)
+            case .failed(let message):
+                Text(message).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            switch updater.phase {
+            case .available:
+                Button("Update and Relaunch") { updater.install() }.keyboardShortcut(.defaultAction)
+            case .checking, .installing:
+                EmptyView()
+            default:
+                Button("Check for Updates") { updater.check() }
+            }
+        }
+    }
+}
+
 struct AboutPane: View {
     var body: some View {
         Form {
@@ -295,7 +331,10 @@ struct AboutPane: View {
             Section {
                 Button("Licenses") { openNotices() }
                 Link("Source on GitHub", destination: AppInfo.repoURL)
-                Link("Check for Updates on GitHub", destination: AppInfo.releasesURL)
+            }
+            Section {
+                UpdateRow(updater: Updater.shared)
+                Toggle("Check for updates automatically", isOn: Bindable(Updater.shared).automatic)
             }
             Section {
                 HStack {

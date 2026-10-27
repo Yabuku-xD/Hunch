@@ -4,77 +4,33 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Changed
-
-- The model runs in a helper process (`hunch-embedder`) that exits after 5 idle minutes. The app stays at about
-  68 MB; before, unloading the model left 50–110 MB behind in the app.
-- Search queries use their own small llama.cpp context; the wide indexing context is created only when files are
-  indexed. Memory while searching by meaning: 289 MB in total, was 355 MB.
-- Row icons and content previews share one tile size (32 pt, 28 pt on small screens); group glyphs sit centred on
-  their first row.
-- The model helper ships as `Contents/Helpers/Hunch Helper.app`, a background-only bundle: Activity Monitor shows
-  it as "Hunch Helper" with Hunch's icon, and it never appears as an app of its own.
-- App icon: continuous-corner (superellipse) tile, a deeper glass orb with a specular highlight and lit rim, and a
-  warm caustic below it.
-- The menu bar item has an autosave name, so its position is kept across launches.
-- Opening Hunch from Spotlight, Finder or the Dock opens Settings, also while it runs; the panel keeps its shortcut.
-  A login-item launch still stays in the menu bar.
-- The model lives in Hunch's own folder, `~/.hunch/models`: it is downloaded there and loaded only from there. An
-  existing copy in `~/Library/Application Support/Hunch/Models` moves there on first launch (a rename, no new
-  download). Copies in DigUp's folder or the Hugging Face cache are no longer used.
-- "Open in …" follows the app macOS opens the file with, per file, and picks up a default changed in Finder the next
-  time the panel opens (it was cached per file type until relaunch).
-- Debug builds started by scripts (screenshots, probes) no longer add a menu bar item, so menu bar managers such as
-  Dimble do not see Hunch's item appear and vanish hundreds of times.
-- Welcome and Settings copy fits in two lines at most; the model credit and its links share one line.
-- A result found only by meaning says "by meaning" instead of a lone "≈".
-
-### Added
-
-- System Settings panes are searchable by their sidebar names and topics ("login items", "battery", "touch bar",
-  "wi-fi") and open the pane directly.
-- Force Quit: hold ⌥ in the actions (⌘K) and Quit becomes Force Quit, or press ⌃⌥⇧Q. When an app has not quit 3 s
-  after Quit, the status line says so and its actions offer Force Quit.
-- Copy File: hold ⌥ in the actions and Copy Path becomes Copy File, or press ⌥⇧⌘C. The file itself goes on the
-  pasteboard, ready to paste into Finder, Mail or a chat.
-- Drag a result out of the panel to drop the file into another app.
-- `modified:today|yesterday|week|month|year` filter, and `kind:` accepts a file type (`kind:pdf` = `ext:pdf`).
-- `Scripts/quant-eval.py` and `hunch-bench --embed-eval`: measure a GGUF quantization against BF16. Q8_0 stays the
-  default; no smaller EmbeddingGemma 2 quant keeps the top-10 results (see README FAQ).
-
-## [1.1.0] - 2026-10-27
-
-### Changed
-
-- New name and icon: BetterSpotlight is now **Hunch**. The app, bundle id (`app.hunch.Hunch`), data folder
-  (`~/Library/Application Support/Hunch`) and repository moved; GitHub redirects the old URL.
-- The menu bar item uses the new mark (an orb with a glint) instead of a magnifier.
-
-### Fixed
-
-- Updating from 1.0.0 keeps the index, the downloaded model and settings: they move to the new name on first launch.
-- `IndexCoordinatorTests` no longer fail when FSEvents delivery is slow on a busy machine.
-- The perf gate's hover checks measured the cost of showing the panel, not of hovering; they now compare the shown
-  panel with and without a hovered row.
-
 ## [1.0.0] - 2026-10-27
 
+First release of Hunch.
+
 ### Added
 
-- Launcher panel for apps, files and folders, opened with a global shortcut.
+- Launcher panel for apps, files, folders and System Settings panes, opened with a global shortcut (⌥Space by
+  default). Settings panes are found by their sidebar names and topics ("login items", "battery", "wi-fi") and open
+  directly.
 - Content search: text in documents, text in images (OCR), frames in videos and speech in audio and video.
-- Optional meaning search for text and images with EmbeddingGemma 2, downloaded on request (865 MB) with resume,
-  SHA-256 verification and reuse of an existing DigUp or Hugging Face copy.
-- `in:`, `name:`, `ext:` and `kind:` filters, quick actions (Open With, Show in Finder, Quick Look, Copy Path), pins and recents.
-- Onboarding, Settings (General, Search, Index, About) and a standard app menu.
+- Optional meaning search for text and images with EmbeddingGemma 2 (Q8_0, 865 MB), downloaded on request into
+  `~/.hunch/models` with resume and SHA-256 verification. The model runs in a background helper
+  (`Contents/Helpers/Hunch Helper.app`) that exits after 5 idle minutes, so the app itself stays at about 68 MB.
+- Filters: `in:`, `name:`, `ext:`, `kind:` (also a file type, `kind:pdf`) and
+  `modified:today|yesterday|week|month|year`.
+- Actions (⌘K): Open, Open With, Show in Finder, Quick Look, Copy Path, pins and recents. Hold ⌥ for Force Quit
+  (also ⌃⌥⇧Q) and Copy File (also ⌥⇧⌘C). Drag a result out of the panel into another app.
+- In-app updates: Settings › About and the menu bar item check GitHub Releases, verify the download against
+  `SHA256SUMS.txt` and its code signature, replace the app and relaunch. Index, model and settings are kept. An
+  automatic check runs at most once a day at launch and can be turned off.
+- Menu bar item, onboarding, Settings (General, Search, Index, About) and a standard app menu.
 - Apps-only default index scope: folders such as Desktop, Documents and Downloads are added by choice.
+- `Scripts/quant-eval.py` and `hunch-bench --embed-eval` measure a GGUF quantization against BF16.
 
 ### Security
 
 - Files that look like secrets are indexed by name only.
-- No network access except the model download you start and links you click.
+- Network access only for the model download you start, the update check and links you click.
 
-[Unreleased]: https://github.com/Yabuku-xD/Hunch/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/Yabuku-xD/Hunch/releases/tag/v1.0.0

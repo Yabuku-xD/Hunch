@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var guide: OnboardingWindowController?
     private var statusItem: NSStatusItem?
     private var statusLine: NSMenuItem?
+    private var updateItem: NSMenuItem?
     private var statusLineTask: Task<Void, Never>?
     private var models: (any ModelProviding)?
     private var recorder: ShortcutRecorderModel?
@@ -90,9 +91,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let scriptedRun =
             launch.showPanel || launch.showSettings || launch.measure || env["HUNCH_HIDDEN"] == "1"
             || env["HUNCH_FIXTURE"] != nil || env["HUNCH_PROBE"] == "1"
-        if !scriptedRun { installStatusItem(controller: controller, settings: settings, guide: guide) }
+        if !scriptedRun {
+            installStatusItem(controller: controller, settings: settings, guide: guide)
+            Updater.shared.checkIfDue()
+        }
         #else
         installStatusItem(controller: controller, settings: settings, guide: guide)
+        Updater.shared.checkIfDue()
         #endif
 
         DistributedNotificationCenter.default().addObserver(
@@ -242,9 +247,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         controller: PanelController, settings: SettingsWindowController,
         guide: OnboardingWindowController
     ) {
+        // Keep the default autosave name ("Item-0"). Renaming it after creation gives the item two identities, and menu
+        // bar managers (Dimble, Ice, Bartender) then drop it from their lists as a stale alias.
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        // A stable name, so macOS and menu bar managers remember where the user put the item across launches.
-        item.autosaveName = AppInfo.name
         let attention = hotKeyFailed || modelFailed
         item.button?.image = Self.statusMark(attention: attention)
         let menu = NSMenu()
@@ -257,6 +262,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusLine = line
         menu.addItem(ClosureMenuItem(title: "Settings…", key: ",") { settings.show() })
         menu.addItem(ClosureMenuItem(title: "Welcome Guide…") { guide.show(reopened: true) })
+        let update = ClosureMenuItem(title: "Check for Updates…") {
+            settings.show(pane: .about)
+            if Updater.shared.available == nil { Updater.shared.check() }
+        }
+        menu.addItem(update)
+        updateItem = update
         menu.addItem(.separator())
         menu.addItem(
             withTitle: "Quit \(AppInfo.name)", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -284,6 +295,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuWillOpen(_ menu: NSMenu) {
         statusLine?.title = statusLineText()
+        updateItem?.title =
+            Updater.shared.available.map { "Update to \(AppInfo.name) \($0.version)…" } ?? "Check for Updates…"
         // Live only while open: one observation re-arm per change, dropped in menuDidClose.
         statusLineTask?.cancel()
         statusLineTask = Task { @MainActor [weak self] in

@@ -11,5 +11,4 @@ enum AppInfo {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
     }
     static let repoURL = URL(string: "https://github.com/Yabuku-xD/Hunch")!
-    static var releasesURL: URL { repoURL.appendingPathComponent("releases/latest") }
 }

@@ -103,7 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         DistributedNotificationCenter.default().addObserver(
             forName: Self.reopenNotification, object: nil, queue: .main
         ) { _ in
-            MainActor.assumeIsolated { settings.show() }
+            MainActor.assumeIsolated { self.showSettingsUnlessGuiding() }
         }
         NotificationCenter.default.addObserver(forName: .onboardingWantsPanel, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { controller.show() }
@@ -200,8 +200,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Opening the app again while it runs (Spotlight, Finder, Dock) opens Settings; the panel has its shortcut.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        settings?.show()
+        showSettingsUnlessGuiding()
         return false
+    }
+
+    /// While the Welcome Guide is open, a reopen (a second double-click, or the reopen event macOS sends after the
+    /// first-launch Gatekeeper prompt) brings the guide forward instead of opening Settings beside it.
+    private func showSettingsUnlessGuiding() {
+        if let guide, guide.isOpen {
+            guide.show(reopened: false)
+        } else {
+            settings?.show()
+        }
     }
 
     /// The model-missing status: the guide at step 4, or Settings › Index once the guide is complete.

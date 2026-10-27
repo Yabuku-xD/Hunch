@@ -21,11 +21,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The menu bar item has an autosave name, so its position is kept across launches.
 - Opening Hunch from Spotlight, Finder or the Dock opens Settings, also while it runs; the panel keeps its shortcut.
   A login-item launch still stays in the menu bar.
+- The model lives in Hunch's own folder, `~/.hunch/models`: it is downloaded there and loaded only from there. An
+  existing copy in `~/Library/Application Support/Hunch/Models` moves there on first launch (a rename, no new
+  download). Copies in DigUp's folder or the Hugging Face cache are no longer used.
+- "Open in …" follows the app macOS opens the file with, per file, and picks up a default changed in Finder the next
+  time the panel opens (it was cached per file type until relaunch).
+- Debug builds started by scripts (screenshots, probes) no longer add a menu bar item, so menu bar managers such as
+  Dimble do not see Hunch's item appear and vanish hundreds of times.
 - Welcome and Settings copy fits in two lines at most; the model credit and its links share one line.
 - A result found only by meaning says "by meaning" instead of a lone "≈".
 
 ### Added
 
+- System Settings panes are searchable by their sidebar names and topics ("login items", "battery", "touch bar",
+  "wi-fi") and open the pane directly.
 - Force Quit: hold ⌥ in the actions (⌘K) and Quit becomes Force Quit, or press ⌃⌥⇧Q. When an app has not quit 3 s
   after Quit, the status line says so and its actions offer Force Quit.
 - Copy File: hold ⌥ in the actions and Copy Path becomes Copy File, or press ⌥⇧⌘C. The file itself goes on the

@@ -1,4 +1,5 @@
 import AppKit
+import HunchCore
 import Observation
 import SwiftUI
 
@@ -212,7 +213,6 @@ final class OnboardingModel {
         case 4:
             switch modelState {
             case .missing: ModelCopy.downloadButton
-            case .ready(let m) where m.textSource == .digUp || m.textSource == .huggingFaceCache: "Use It"
             case .failed: "Try Again"
             default: "Continue"
             }
@@ -245,7 +245,7 @@ final class OnboardingModel {
 
     /// "Don't Show Again": completes with the defaults applied (app roots only, model left as is).
     func dontShowAgain() {
-        if let admin { Task { await admin.setRoots(AppRoots.all + admin.userRoots) } }
+        if let admin { Task { await admin.setRoots(Crawler.appRoots + admin.userRoots) } }
         complete()
     }
 
@@ -353,7 +353,7 @@ final class OnboardingModel {
             folders[i].access = ok ? .granted : .denied
         }
         isTouchingFolders = false
-        let roots = FolderChoice.roots(folders, appRoots: AppRoots.all)
+        let roots = FolderChoice.roots(folders, appRoots: Crawler.appRoots)
         if let admin { await admin.setRoots(roots) }
         flow.next(defaults)
     }

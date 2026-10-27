@@ -69,7 +69,8 @@ public struct IndexSettings: Sendable, Equatable, Codable {
 
     /// Version of the crawl rules (skip names, package leaves). A mismatch with the stored value triggers
     /// `verify(.rulesChanged)`, never a rebuild.
-    public static let rulesVersion = "3"
+    /// 5: System Settings panes (`SettingsPanes`) are indexed.
+    public static let rulesVersion = "5"
 
     /// Home plus the application folders.
     public static var `default`: IndexSettings { IndexSettings(roots: Crawler.defaultRoots) }

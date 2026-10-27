@@ -19,13 +19,38 @@ public struct Paths: Sendable {
         try? fm.moveItem(at: old, to: new)
     }
 
-    /// The resolved embedding model, or the DigUp path when nothing is found (loading it then fails cleanly).
-    public static var modelURL: URL {
-        resolveModel() ?? digUpModel(home: FileManager.default.homeDirectoryForCurrentUser)
+    /// Hunch's own folder in the home directory: `~/.hunch`.
+    public static func dotFolder(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+        home.appendingPathComponent(".hunch", isDirectory: true)
     }
 
-    /// EmbeddingGemma 2 text gguf, resolved by `ModelStore` (exact pinned names, in `ModelSource` order:
-    /// env `HUNCH_MODEL` → our Models folder → Hugging Face cache → DigUp's copy). nil = name-only mode.
+    /// Where the model is downloaded and loaded from: `~/.hunch/models`.
+    public static func modelsDirectory(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+        dotFolder(home: home).appendingPathComponent("models", isDirectory: true)
+    }
+
+    /// Up to 1.1.0 the model lived in `~/Library/Application Support/Hunch/Models`. Moves those files (model, partial
+    /// downloads, checksum cache) to `~/.hunch/models` once, so an update does not download 865 MB again. A rename on
+    /// the same volume: no copy, no extra disk space. Does nothing once the old folder is gone.
+    public static func migrateModelsToDotFolder(home: URL = FileManager.default.homeDirectoryForCurrentUser) {
+        let fm = FileManager.default
+        let old = home.appendingPathComponent("Library/Application Support/Hunch/Models", isDirectory: true)
+        guard let names = try? fm.contentsOfDirectory(atPath: old.path) else { return }
+        let new = modelsDirectory(home: home)
+        try? fm.createDirectory(at: new, withIntermediateDirectories: true)
+        for name in names where !fm.fileExists(atPath: new.appendingPathComponent(name).path) {
+            try? fm.moveItem(at: old.appendingPathComponent(name), to: new.appendingPathComponent(name))
+        }
+        if (try? fm.contentsOfDirectory(atPath: old.path))?.isEmpty ?? false { try? fm.removeItem(at: old) }
+    }
+
+    /// The resolved embedding model, or its download path when it is missing (loading it then fails cleanly).
+    public static var modelURL: URL {
+        resolveModel() ?? modelsDirectory().appendingPathComponent(ModelFile.text.fileName)
+    }
+
+    /// EmbeddingGemma 2 text gguf, resolved by `ModelStore` (exact pinned name: env `HUNCH_MODEL`, then
+    /// `~/.hunch/models`). nil = name-only mode.
     public static func resolveModel(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         home: URL = FileManager.default.homeDirectoryForCurrentUser
@@ -40,9 +65,5 @@ public struct Paths: Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> URL? {
         ModelStore(environment: environment).resolve()?.projector
-    }
-
-    static func digUpModel(home: URL) -> URL {
-        home.appendingPathComponent("Library/Application Support/DigUp/Models/embeddinggemma-2-Q8_0.gguf")
     }
 }

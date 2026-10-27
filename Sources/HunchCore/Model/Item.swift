@@ -5,6 +5,8 @@ public enum ItemKind: UInt8, Sendable {
     case app = 0
     case folder = 1
     case file = 2
+    /// A System Settings pane (see `SettingsPanes`).
+    case setting = 3
 }
 
 /// One indexed entry (app, folder or file). `id` is stable for the lifetime of the catalog.

@@ -358,12 +358,6 @@ private struct ModelCard: View {
 
     var body: some View {
         switch model.modelState {
-        case .ready(let m) where m.textSource == .digUp || m.textSource == .huggingFaceCache:
-            Text(
-                "Found the EmbeddingGemma 2 model on this Mac (\(m.textSource == .digUp ? "DigUp" : "Hugging Face cache")). "
-                    + "\(AppInfo.name) uses it where it is, without copying it."
-            )
-            .copyStyle()
         case .ready(let m) where !m.hasProjector:
             // Text model without the projector: meaning works for text; pictures fall back to the text in them.
             Text(

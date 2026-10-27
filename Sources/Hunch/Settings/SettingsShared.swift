@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import HunchCore
 import Observation
 import SwiftUI
 
@@ -258,8 +259,6 @@ enum ModelCopy {
 
     static func location(_ source: ModelSource) -> String {
         switch source {
-        case .digUp: "DigUp's copy"
-        case .huggingFaceCache: "Hugging Face cache"
         case .downloaded: "Downloaded"
         case .override: "Developer override"
         }

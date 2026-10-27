@@ -168,6 +168,7 @@ public struct Crawler: Sendable {
             for extra in Crawler.appOnlyRoots {
                 entries += listDirectory(extra).entries.filter { $0.kind == .app }
             }
+            entries += SettingsPanes.entries()
         }
         var units: [String] = []
         let listed = await parallelMap(level1, { d in (d, listDirectory(d)) })

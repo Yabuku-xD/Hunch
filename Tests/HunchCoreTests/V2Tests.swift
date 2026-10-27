@@ -167,7 +167,7 @@ private func waitUntil(_ timeout: Duration = .seconds(3), _ cond: () async -> Bo
             try h.close()
             return p
         }
-        let models = home.appendingPathComponent("Library/Application Support/Hunch/Models")
+        let models = Paths.modelsDirectory(home: home)
         _ = touch(
             try {
                 try FileManager.default.createDirectory(at: models, withIntermediateDirectories: true); return models
@@ -182,10 +182,10 @@ private func waitUntil(_ timeout: Duration = .seconds(3), _ cond: () async -> Bo
         #expect(Paths.resolveModel(environment: ["HUNCH_MODEL": explicit], home: home)?.path == explicit)
         #expect(ModelStore(home: home, environment: [:]).resolve()?.projector?.path == mmproj)
 
+        // Another app's copy is never used.
         try FileManager.default.removeItem(atPath: own)
-        let digUp = Paths.digUpModel(home: home)
-        #expect(try sparse(digUp.deletingLastPathComponent(), .text) == digUp.path)
-        #expect(Paths.resolveModel(environment: [:], home: home) == digUp)
+        _ = try sparse(home.appendingPathComponent("Library/Application Support/DigUp/Models"), .text)
+        #expect(Paths.resolveModel(environment: [:], home: home) == nil)
     }
 
     @Test func noModelMeansNameOnlyAndModelMissingStatus() async throws {
@@ -486,5 +486,28 @@ private struct EmptyVectors: VectorIndex {
         #expect(emissions[0] == [1])
         #expect(Set(emissions[1]) == [1, 3])
         #expect(Set(emissions[2]) == [1, 3])
+    }
+}
+
+@Suite struct SettingsPanesTests {
+    /// System Settings panes are found by their sidebar names and open by URL.
+    @Test func panesAreIndexedAndOpenByURL() throws {
+        let panes = SettingsPanes.entries(languages: ["en"])
+        #expect(panes.count > 20)
+        #expect(panes.allSatisfy { $0.kind == .setting })
+        let login = try #require(panes.first { $0.name == "Login Items & Extensions" })
+        #expect(
+            SettingsPanes.url(forPane: login.path)?.absoluteString
+                == "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
+        #expect(panes.contains { $0.name == "Wi-Fi" })
+        #expect(panes.contains { $0.name == (SettingsPanes.hasInternalBattery ? "Battery" : "Energy") })
+        #expect(panes.contains { $0.name == "Touch ID & Password" })
+        #expect(SettingsPanes.aliases(path: login.path, languages: ["en"]).contains("Touch Bar"))
+    }
+
+    @Test func rawBundleNamesAreHumanized() {
+        #expect(SettingsPanes.humanize("HeadphoneSettingsExtension") == "Headphone")
+        #expect(SettingsPanes.humanize("PowerPreferences") == "Power")
+        #expect(SettingsPanes.humanize("Touch ID & Password") == "Touch ID & Password")
     }
 }

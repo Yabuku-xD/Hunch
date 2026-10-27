@@ -11,7 +11,9 @@
 
 ## Features
 
-- **Names**: apps, files and folders, ranked as you type, keyboard-first (↑/↓, ↵, ⌘↵, ⌘1–9, Tab to narrow).
+- **Names**: apps, files, folders and System Settings panes ("login items", "battery", "touch bar"), ranked as you
+  type, keyboard-first (↑/↓, ↵, ⌘↵, ⌘1–9, Tab to narrow). Files open in the app macOS would use: your default for
+  the type, or the file's own "Open with" choice.
 - **Contents**: text inside documents (PDF, Office, RTF, plain text and code), text inside images (OCR), text and frames
   inside videos, and speech inside audio and video.
 - **Meaning**: semantic matches for text and images through EmbeddingGemma 2 and its image projector, on-device.
@@ -23,15 +25,13 @@
 - **Liquid Glass panel**: one slab of system glass that follows Light/Dark, Increase Contrast, Reduce Transparency and
   Reduce Motion.
 
-Out of scope on purpose: clipboard history, calculator, snippets, extensions, AI chat, window management.
-
 ## Privacy
 
 - Everything runs on your Mac. There is no telemetry and no account.
 - The only network call is the optional model download from Hugging Face, plus "Check on GitHub" in Settings → About
   if you click it.
-- The index lives in `~/Library/Application Support/Hunch`. Files that look like secrets are indexed by name
-  only.
+- The model lives in `~/.hunch/models`, the index in `~/Library/Application Support/Hunch`. Files that look like
+  secrets are indexed by name only.
 
 ## Install
 
@@ -41,10 +41,6 @@ Out of scope on purpose: clipboard history, calculator, snippets, extensions, AI
 3. Open **System Settings → Privacy & Security**, scroll to Security, find "Hunch was blocked", click
    **Open Anyway** and authenticate.
 4. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/Hunch.app`.
-
-There is no paid Apple Developer ID yet; the build is ad-hoc signed and reproducible from source with
-`Scripts/make-app.sh`. Because ad-hoc signatures change with every build, **Full Disk Access and Speech Recognition
-grants reset after each update**. Onboarding detects this and offers to grant them again.
 
 Permissions: Full Disk Access is optional (it widens what can be indexed); Speech Recognition is only needed for
 transcripts of audio and video.
@@ -59,9 +55,8 @@ Semantic search uses EmbeddingGemma 2 by Google DeepMind (Apache-2.0), Q8_0 GGUF
 | `embeddinggemma-2-Q8_0.gguf` (text) | 310 MB |
 | `mmproj-embeddinggemma-2-Q8_0.gguf` (images) | 555 MB |
 
-That is 865 MB in total. Onboarding offers the download; it reuses a copy already in the Hugging Face cache or in
-DigUp's Models folder, and you can also choose the files by hand. Without the model, name and content search still
-work.
+That is 865 MB in total. Onboarding offers the download into `~/.hunch/models`, and Hunch loads it only from there;
+you can also choose the files by hand (they are copied there). Without the model, name and content search still work.
 
 ## Build from source
 
@@ -144,17 +139,14 @@ whether or not you use another launcher. This table makes no claims about other 
   (249 MB), keeps 94.6 % and 96 %; the 4- and 5-bit files keep 74–91 %. A smaller file would not lower memory either:
   the weights are mapped from disk, so the footprint with the model loaded measured 282–284 MB for Q8_0, Q6_K and Q4_K
   alike (in-process run).
-- **Can it reuse DigUp's or the Hugging Face cache's model?** Yes, it finds both.
 - **Intel Macs?** No, Apple silicon only.
 - **Uninstall?** Quit it, then delete `/Applications/Hunch.app`,
-  `~/Library/Application Support/Hunch` and the app's preferences in `~/Library/Preferences`.
+  `~/.hunch`, `~/Library/Application Support/Hunch` and the app's preferences in `~/Library/Preferences`.
 
 ## Credits
 
 - [llama.cpp / ggml](https://github.com/ggml-org/llama.cpp) (MIT) for on-device inference.
 - EmbeddingGemma 2 by Google DeepMind (Apache-2.0).
-- [DigUp](https://github.com/ARahim3/DigUp) (MIT): ideas and adapted code, see `THIRD_PARTY_NOTICES.md`.
-- [Tinycast](https://github.com/abue-ammar/tinycast) (AGPL-3.0): ideas only, no code.
 
 Spotlight, macOS and Apple silicon are trademarks of Apple Inc. This project is not affiliated with Apple.
 

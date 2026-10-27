@@ -122,6 +122,7 @@ enum PanelAction: Hashable, Identifiable {
     static func chips(
         for result: SearchResult, isPinned: Bool, isRunning: Bool, quitStalled: Bool = false
     ) -> [PanelAction] {
+        if result.item.kind == .setting { return [isPinned ? .unpin : .pin] }
         var out: [PanelAction] = []
         if result.item.kind != .app { out.append(.openWith) }
         out.append(.reveal)

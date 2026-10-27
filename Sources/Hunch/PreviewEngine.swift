@@ -416,34 +416,24 @@ final class FixtureModelStore: ModelProviding {
     }
 
     private let box: Mutex<Box>
-    let modelsDirectory = URL(
-        fileURLWithPath: NSHomeDirectory() + "/Library/Application Support/\(AppInfo.name)/Models")
+    let modelsDirectory = Paths.modelsDirectory()
     private static let total = ModelStore.downloadBytes
 
     init?(spec: String) {
         let parts = spec.split(separator: ":").map(String.init)
         let fraction = parts.count > 1 ? Double(parts[1]) ?? 0.36 : 0.36
         let progress = Self.progress(fraction, rate: 6_000_000)
-        let home = NSHomeDirectory()
+        let dir = Paths.modelsDirectory()
         func ready(_ source: ModelSource, projector: Bool = true) -> ModelState {
-            let dir =
-                switch source {
-                case .digUp: home + "/Library/Application Support/DigUp/Models/"
-                case .huggingFaceCache:
-                    home + "/.cache/huggingface/hub/models--ggml-org--embeddinggemma-2-GGUF/snapshots/bfcd298/"
-                default: home + "/Library/Application Support/\(AppInfo.name)/Models/"
-                }
-            return .ready(
+            .ready(
                 ResolvedModel(
-                    text: URL(fileURLWithPath: dir + ModelFile.text.fileName), textSource: source,
-                    projector: projector ? URL(fileURLWithPath: dir + ModelFile.projector.fileName) : nil,
+                    text: dir.appendingPathComponent(ModelFile.text.fileName), textSource: source,
+                    projector: projector ? dir.appendingPathComponent(ModelFile.projector.fileName) : nil,
                     projectorSource: projector ? source : nil))
         }
         let state: ModelState
         switch parts[0] {
         case "missing": state = .missing
-        case "found-digup": state = ready(.digUp)
-        case "found-hf": state = ready(.huggingFaceCache)
         case "downloaded": state = ready(.downloaded)
         case "text-only": state = ready(.downloaded, projector: false)
         case "downloading": state = .downloading(progress)
@@ -506,12 +496,12 @@ final class FixtureModelStore: ModelProviding {
                 if next >= 1 {
                     self.set(.verifying(.projector))
                     try? await Task.sleep(for: .seconds(1))
-                    let dir = NSHomeDirectory() + "/Library/Application Support/\(AppInfo.name)/Models/"
+                    let dir = Paths.modelsDirectory()
                     self.set(
                         .ready(
                             ResolvedModel(
-                                text: URL(fileURLWithPath: dir + ModelFile.text.fileName), textSource: .downloaded,
-                                projector: URL(fileURLWithPath: dir + ModelFile.projector.fileName),
+                                text: dir.appendingPathComponent(ModelFile.text.fileName), textSource: .downloaded,
+                                projector: dir.appendingPathComponent(ModelFile.projector.fileName),
                                 projectorSource: .downloaded)))
                     return
                 }

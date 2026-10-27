@@ -47,10 +47,7 @@ struct ModelFileSpec: Sendable, Equatable {
 
 public enum ModelSource: String, Sendable, Codable, Equatable {
     case override  // HUNCH_MODEL / HUNCH_MMPROJ (dev only, unverified, logged)
-    case downloaded  // ~/Library/Application Support/Hunch/Models
-    /// $HF_HUB_CACHE → $HF_HOME/hub → ~/.cache/huggingface/hub/models--ggml-org--embeddinggemma-2-GGUF/snapshots/<rev>/
-    case huggingFaceCache
-    case digUp  // ~/Library/Application Support/DigUp/Models (read-only)
+    case downloaded  // ~/.hunch/models
 }
 
 public struct ResolvedModel: Sendable, Equatable {
@@ -108,7 +105,7 @@ public protocol ModelProviding: AnyObject, Sendable {
     func download()  // user-initiated; text first, then projector; no-op if ready
     func pause()  // keeps resumeData/.partial
     func cancel()  // deletes .partial files, state → .missing
-    func remove() async throws  // deletes only `.downloaded` files; never DigUp/HF/override
+    func remove() async throws  // deletes only `.downloaded` files, never an override
     /// Verifies size + SHA off-main, then copies (APFS clone) into Models/.
     func importFiles(_ urls: [URL]) async throws -> ResolvedModel
     var modelsDirectory: URL { get }  // for "Show in Finder"
@@ -174,9 +171,7 @@ public final class ModelStore: ModelProviding {
         self.specs = specs
         self.capacity = capacity
         self.monitorsNetwork = monitorsNetwork
-        modelsDirectory = home.appendingPathComponent(
-            "Library/Application Support/Hunch/Models",
-            isDirectory: true)
+        modelsDirectory = Paths.modelsDirectory(home: home)
         verifiedCache = Mutex(VerifiedCache.load(from: modelsDirectory.appendingPathComponent(".verified.json")))
         let initial: ModelState
         if let model = resolve() {
@@ -251,32 +246,7 @@ public final class ModelStore: ModelProviding {
             out.append(Candidate(url: URL(fileURLWithPath: (o as NSString).expandingTildeInPath), source: .override))
         }
         out.append(Candidate(url: modelsDirectory.appendingPathComponent(name), source: .downloaded))
-        for snapshot in huggingFaceSnapshots() {
-            out.append(Candidate(url: snapshot.appendingPathComponent(name), source: .huggingFaceCache))
-        }
-        out.append(
-            Candidate(
-                url: home.appendingPathComponent("Library/Application Support/DigUp/Models/\(name)"),
-                source: .digUp))
         return out
-    }
-
-    /// The HF hub snapshot folders for the repo: the pinned revision first, then any other revision.
-    func huggingFaceSnapshots() -> [URL] {
-        let hub: URL
-        if let cache = environment["HF_HUB_CACHE"], !cache.isEmpty {
-            hub = URL(fileURLWithPath: (cache as NSString).expandingTildeInPath)
-        } else if let hf = environment["HF_HOME"], !hf.isEmpty {
-            hub = URL(fileURLWithPath: (hf as NSString).expandingTildeInPath).appendingPathComponent("hub")
-        } else {
-            hub = home.appendingPathComponent(".cache/huggingface/hub")
-        }
-        let snapshots = hub.appendingPathComponent("models--ggml-org--embeddinggemma-2-GGUF/snapshots")
-        let pinned = snapshots.appendingPathComponent(ModelFile.revision)
-        let others = ((try? FileManager.default.contentsOfDirectory(atPath: snapshots.path)) ?? [])
-            .filter { $0 != ModelFile.revision && !$0.hasPrefix(".") }.sorted()
-            .map { snapshots.appendingPathComponent($0) }
-        return [pinned] + others
     }
 
     /// Stat-only resolution in the order of ModelSource (first that exists AND has the exact byte count wins,
@@ -397,7 +367,7 @@ public final class ModelStore: ModelProviding {
         cancelQuietly()
         let fm = FileManager.default
         for file in ModelFile.allCases {
-            // Only the copies this app owns; DigUp, the HF cache and overrides are never touched.
+            // Only the copies this app owns; an override is never touched.
             let url = modelsDirectory.appendingPathComponent(spec(file).fileName)
             if fm.fileExists(atPath: url.path) {
                 do { try fm.removeItem(at: url) } catch { throw ModelStoreError.io(error.localizedDescription) }

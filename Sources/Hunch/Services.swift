@@ -48,7 +48,7 @@ protocol IndexAdmin: AnyObject {
 extension IndexAdmin {
     /// Roots the user chose (the app folders are always included and not counted).
     var userRoots: [URL] {
-        let apps = Set(AppRoots.all.map(\.standardizedFileURL.path))
+        let apps = Set(Crawler.appRoots.map(\.standardizedFileURL.path))
         return roots.filter { !apps.contains($0.standardizedFileURL.path) }
     }
     var userRootsCount: Int { userRoots.count }
@@ -191,21 +191,22 @@ final class RunningApps {
     }
 }
 
-/// "Open in Preview" style verbs, cached per extension.
+/// "Open in Preview" style verbs: the app macOS opens the file with (the user's default for its type, or the
+/// file's own "Open with" choice). Cached per file while the panel is open; cleared on each show, so a default
+/// changed in Finder shows up the next time.
 @MainActor
 enum DefaultApp {
     private static var names: [String: String] = [:]
 
+    static func reset() { names.removeAll(keepingCapacity: true) }
+
     static func name(for path: String) -> String? {
-        let ext = (path as NSString).pathExtension.lowercased()
-        if let hit = names[ext] { return hit.isEmpty ? nil : hit }
-        let url = URL(fileURLWithPath: path)
-        let app = NSWorkspace.shared.urlForApplication(toOpen: url)
+        if let hit = names[path] { return hit.isEmpty ? nil : hit }
+        let app = NSWorkspace.shared.urlForApplication(toOpen: URL(fileURLWithPath: path))
         let name =
             app.map { FileManager.default.displayName(atPath: $0.path) }
             .map { $0.hasSuffix(".app") ? String($0.dropLast(4)) : $0 } ?? ""
-        // Only cache when the file exists: a missing file returns no app and would poison the extension.
-        if !ext.isEmpty, app != nil { names[ext] = name }
+        if app != nil { names[path] = name }
         return name.isEmpty ? nil : name
     }
 

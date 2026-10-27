@@ -153,7 +153,7 @@ extension SearchResult {
         }
         if source == .semantic { return .meaning }
         switch item.kind {
-        case .app: return .apps
+        case .app, .setting: return .apps
         case .folder: return .folders
         case .file: return .files
         }
@@ -219,7 +219,7 @@ enum DisplayText {
 
     /// Candidate locations from full to shortest: `~/Documents/Finance/2025`, `~/…/Finance/2025`, `~/…/2025`.
     static func locations(_ item: Item) -> [String] {
-        guard item.kind != .app else { return [] }
+        guard item.kind == .file || item.kind == .folder else { return [] }
         let parent = ((item.path as NSString).deletingLastPathComponent as NSString).abbreviatingWithTildeInPath
         let full = sanitize(parent)
         let parts = full.split(separator: "/", omittingEmptySubsequences: true)
@@ -292,6 +292,7 @@ enum KindLabel {
     static func text(for item: Item) -> String {
         switch item.kind {
         case .app: return "Application"
+        case .setting: return "System Settings"
         case .folder: return "Folder"
         case .file:
             let ext = (item.name as NSString).pathExtension.lowercased()

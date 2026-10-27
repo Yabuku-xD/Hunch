@@ -23,6 +23,7 @@ public enum NameDocument {
     static func label(kind: ItemKind, ext: String) -> String {
         switch kind {
         case .app: return "application"
+        case .setting: return "system setting"
         case .folder: return "folder"
         case .file:
             switch ext {

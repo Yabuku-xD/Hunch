@@ -82,7 +82,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 welcome: { guide.show(reopened: true) },
                 selectPane: { settings.select($0) },
                 settingsIsKey: { settings.isKey }))
+        #if DEBUG
+        // Scripted runs (screenshots, probes) start and quit within seconds. A status item that appears and vanishes
+        // hundreds of times under the shipping bundle id confuses menu bar managers (Dimble, Ice, Bartender), which
+        // remember items by bundle id, so these runs add none.
+        let env = ProcessInfo.processInfo.environment
+        let scriptedRun =
+            launch.showPanel || launch.showSettings || launch.measure || env["HUNCH_HIDDEN"] == "1"
+            || env["HUNCH_FIXTURE"] != nil || env["HUNCH_PROBE"] == "1"
+        if !scriptedRun { installStatusItem(controller: controller, settings: settings, guide: guide) }
+        #else
         installStatusItem(controller: controller, settings: settings, guide: guide)
+        #endif
 
         DistributedNotificationCenter.default().addObserver(
             forName: Self.reopenNotification, object: nil, queue: .main

@@ -100,12 +100,13 @@ final class IconCache {
         if FileManager.default.fileExists(atPath: path) {
             // /Applications/Safari.app is a symlink into the system cryptex; its icon would carry the alias badge.
             // Apps show their real icon, like Spotlight and the Dock. Symlinked documents keep the honest badge.
+            if kind == .setting { return workspace.icon(forFile: SettingsPanes.app) }
             let resolved = kind == .app ? (path as NSString).resolvingSymlinksInPath : path
             return workspace.icon(forFile: resolved)
         }
         let type: UTType =
             switch kind {
-            case .app: .applicationBundle
+            case .app, .setting: .applicationBundle
             case .folder: .folder
             case .file: UTType(filenameExtension: (path as NSString).pathExtension) ?? .data
             }

@@ -418,7 +418,9 @@ final class PanelController {
                 guard let error else { return }
                 Task { @MainActor in self?.openFailed(result, error) }
             }
-            if item.kind == .app, app == nil {
+            if item.kind == .setting, let pane = SettingsPanes.url(forPane: item.path) {
+                NSWorkspace.shared.open(pane, configuration: configuration) { _, e in failure(e) }
+            } else if item.kind == .app, app == nil {
                 // P3: openApplication also reopens a running app that has no windows (activate() alone does not),
                 // and works from a fullscreen Space.
                 NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, e in failure(e) }
@@ -586,19 +588,23 @@ final class PanelController {
     }
 
     private func toggleQuickLook() {
-        guard let result = model.selectedResult, result.item.kind != .app else { return }
+        guard let result = model.selectedResult, result.item.kind == .file || result.item.kind == .folder else {
+            return
+        }
         admin?.indexNow(result.item)
         quickLook.url = URL(fileURLWithPath: result.item.path)
         quickLook.toggle()
     }
 
     private func syncQuickLook() {
-        guard quickLook.isVisible, let result = model.selectedResult, result.item.kind != .app else { return }
+        guard quickLook.isVisible, let result = model.selectedResult,
+            result.item.kind == .file || result.item.kind == .folder
+        else { return }
         quickLook.url = URL(fileURLWithPath: result.item.path)
     }
 
     private func openWithChooser(_ result: SearchResult) {
-        guard result.item.kind != .app else { return }
+        guard result.item.kind == .file || result.item.kind == .folder else { return }
         let apps = DefaultApp.candidates(for: URL(fileURLWithPath: result.item.path))
         guard !apps.isEmpty else { return }
         model.openChips(apps.map { .openIn($0) }, chooser: true)

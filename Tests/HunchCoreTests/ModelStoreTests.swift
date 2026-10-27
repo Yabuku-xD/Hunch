@@ -134,15 +134,7 @@ private func waitFor(
     return store.state
 }
 
-private func modelsDir(_ home: URL) -> URL {
-    home.appendingPathComponent("Library/Application Support/Hunch/Models")
-}
-
-private func digUpDir(_ home: URL) -> URL { home.appendingPathComponent("Library/Application Support/DigUp/Models") }
-
-private func hfDir(_ hub: URL, revision: String = ModelFile.revision) -> URL {
-    hub.appendingPathComponent("models--ggml-org--embeddinggemma-2-GGUF/snapshots/\(revision)")
-}
+private func modelsDir(_ home: URL) -> URL { home.appendingPathComponent(".hunch/models") }
 
 // MARK: Tests
 
@@ -158,50 +150,35 @@ private func hfDir(_ hub: URL, revision: String = ModelFile.revision) -> URL {
         #expect(ModelFile.projector.sha256 == "c4a8a52691ecef40618438928bdf9e68379b854e24166f292592353db0aab64f")
     }
 
-    /// 1. All four sources in order, mixed sources per file, and a wrong byte count being skipped.
+    /// 1. Only ~/.hunch/models (and the dev override) count; copies elsewhere and wrong byte counts are ignored.
     @Test func resolutionOrder() throws {
         let fx = ModelFixture()
         let home = scratch("order")
-        let hub = scratch("hub")
-        defer {
-            try? FileManager.default.removeItem(at: home)
-            try? FileManager.default.removeItem(at: hub)
-        }
-        let env = ["HF_HUB_CACHE": hub.path]
-        #expect(fx.store(home: home, environment: env).resolve() == nil)
-        #expect(fx.store(home: home, environment: env).state == .missing)
+        defer { try? FileManager.default.removeItem(at: home) }
+        #expect(fx.store(home: home).resolve() == nil)
+        #expect(fx.store(home: home).state == .missing)
 
-        let digText = write(fx.text, digUpDir(home), "t.gguf")
-        var r = try #require(fx.store(home: home, environment: env).resolve())
-        #expect(r.text == digText && r.textSource == .digUp && r.projector == nil && !r.hasProjector)
+        // Another app's copy (DigUp) is not used: Hunch downloads its own.
+        _ = write(fx.text, home.appendingPathComponent("Library/Application Support/DigUp/Models"), "t.gguf")
+        #expect(fx.store(home: home).resolve() == nil)
 
-        let hfText = write(fx.text, hfDir(hub), "t.gguf")
-        let hfProjector = write(fx.projector, hfDir(hub, revision: "0000other"), "p.gguf")  // any snapshot counts
-        r = try #require(fx.store(home: home, environment: env).resolve())
-        #expect(r.text == hfText && r.textSource == .huggingFaceCache)
-        #expect(r.projector == hfProjector && r.projectorSource == .huggingFaceCache)
-
-        // Wrong byte count in our own folder: skipped, the HF copy still wins.
+        // Wrong byte count in our own folder: skipped.
         _ = write(fx.text.prefix(999), modelsDir(home), "t.gguf")
-        r = try #require(fx.store(home: home, environment: env).resolve())
-        #expect(r.textSource == .huggingFaceCache)
+        #expect(fx.store(home: home).resolve() == nil)
 
-        // Mixed: text downloaded, projector from the HF cache.
         let ownText = write(fx.text, modelsDir(home), "t.gguf")
-        r = try #require(fx.store(home: home, environment: env).resolve())
-        #expect(r.text == ownText && r.textSource == .downloaded && r.projectorSource == .huggingFaceCache)
-
-        // HF_HOME/hub is used when HF_HUB_CACHE is unset; the default is ~/.cache/huggingface/hub.
-        let r2 = try #require(
-            fx.store(home: home, environment: ["HF_HOME": hub.deletingLastPathComponent().path]).resolve())
-        #expect(r2.projectorSource == nil)  // HF_HOME/hub does not exist under that parent
+        var r = try #require(fx.store(home: home).resolve())
+        #expect(r.text == ownText && r.textSource == .downloaded && r.projector == nil && !r.hasProjector)
+        let ownProjector = write(fx.projector, modelsDir(home), "p.gguf")
+        r = try #require(fx.store(home: home).resolve())
+        #expect(r.projector == ownProjector && r.projectorSource == .downloaded)
 
         // Override wins, unverified, even with an odd size.
         let odd = write(Data("x".utf8), home, "dev.gguf")
-        r = try #require(fx.store(home: home, environment: env.merging(["HUNCH_MODEL": odd.path]) { $1 }).resolve())
+        r = try #require(fx.store(home: home, environment: ["HUNCH_MODEL": odd.path]).resolve())
         #expect(r.text == odd && r.textSource == .override)
         // A missing override falls through.
-        r = try #require(fx.store(home: home, environment: env.merging(["HUNCH_MODEL": "/nope.gguf"]) { $1 }).resolve())
+        r = try #require(fx.store(home: home, environment: ["HUNCH_MODEL": "/nope.gguf"]).resolve())
         #expect(r.textSource == .downloaded)
     }
 
@@ -217,7 +194,7 @@ private func hfDir(_ hub: URL, revision: String = ModelFile.revision) -> URL {
                 == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
     }
 
-    /// verifyCandidates: a candidate with the right size but the wrong hash is recorded in .verified.json and skipped.
+    /// verifyCandidates: a file with the right size but the wrong hash is recorded in .verified.json and skipped.
     @Test func verifyCandidatesSkipsBadHashes() async throws {
         let fx = ModelFixture()
         let home = scratch("verify")
@@ -225,14 +202,12 @@ private func hfDir(_ hub: URL, revision: String = ModelFile.revision) -> URL {
         var corrupt = fx.text
         corrupt[10] ^= 0xFF
         _ = write(corrupt, modelsDir(home), "t.gguf")
-        let good = write(fx.text, digUpDir(home), "t.gguf")
         let store = fx.store(home: home)
         #expect(store.resolve()?.textSource == .downloaded)  // stat-only: size matches
-        let verified = try #require(await store.verifyCandidates())
-        #expect(verified.text == good && verified.textSource == .digUp)
-        #expect(store.state == .ready(verified))
+        #expect(await store.verifyCandidates() == nil)
+        #expect(store.state == .missing)
         // The verdict persists (fresh store, no hashing needed).
-        #expect(fx.store(home: home).resolve()?.textSource == .digUp)
+        #expect(fx.store(home: home).resolve() == nil)
         #expect(FileManager.default.fileExists(atPath: modelsDir(home).appendingPathComponent(".verified.json").path))
     }
 
@@ -365,32 +340,37 @@ private func hfDir(_ hub: URL, revision: String = ModelFile.revision) -> URL {
         #expect(!FileManager.default.fileExists(atPath: partial.path))
     }
 
-    /// 6. remove() deletes only our own copies, never DigUp or the HF cache.
-    @Test func removeNeverTouchesDigUpOrHF() async throws {
+    /// 6. remove() deletes only our own copies, never a dev override.
+    @Test func removeNeverTouchesOverride() async throws {
         let fx = ModelFixture()
         let home = scratch("remove")
-        let hub = scratch("remove-hub")
-        defer {
-            try? FileManager.default.removeItem(at: home)
-            try? FileManager.default.removeItem(at: hub)
-        }
+        defer { try? FileManager.default.removeItem(at: home) }
         let own = write(fx.text, modelsDir(home), "t.gguf")
         let ownP = write(fx.projector, modelsDir(home), "p.gguf")
-        let dig = write(fx.text, digUpDir(home), "t.gguf")
-        let hf = write(fx.projector, hfDir(hub), "p.gguf")
-        let store = fx.store(home: home, environment: ["HF_HUB_CACHE": hub.path])
+        let dev = write(fx.text, home, "dev.gguf")
+        let store = fx.store(home: home)
         #expect(store.resolve()?.textSource == .downloaded)
         try await store.remove()
         #expect(!FileManager.default.fileExists(atPath: own.path))
         #expect(!FileManager.default.fileExists(atPath: ownP.path))
-        #expect(FileManager.default.fileExists(atPath: dig.path))
-        #expect(FileManager.default.fileExists(atPath: hf.path))
-        #expect(
-            store.state
-                == .ready(
-                    ResolvedModel(
-                        text: dig, textSource: .digUp, projector: hf,
-                        projectorSource: .huggingFaceCache)))
+        #expect(FileManager.default.fileExists(atPath: dev.path))
+        #expect(store.state == .missing)
+    }
+
+    /// Up to 1.1.0 the model lived in Application Support; it moves to ~/.hunch/models once, without a copy.
+    @Test func modelsMoveToDotFolder() throws {
+        let home = scratch("dot")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let old = home.appendingPathComponent("Library/Application Support/Hunch/Models")
+        let model = write(Data("m".utf8), old, ModelFile.text.fileName)
+        let inode = try FileManager.default.attributesOfItem(atPath: model.path)[.systemFileNumber] as? Int
+        Paths.migrateModelsToDotFolder(home: home)
+        let moved = modelsDir(home).appendingPathComponent(ModelFile.text.fileName)
+        #expect(FileManager.default.fileExists(atPath: moved.path))
+        #expect(try FileManager.default.attributesOfItem(atPath: moved.path)[.systemFileNumber] as? Int == inode)
+        #expect(!FileManager.default.fileExists(atPath: old.path))
+        Paths.migrateModelsToDotFolder(home: home)  // second run: nothing to do
+        #expect(FileManager.default.fileExists(atPath: moved.path))
     }
 
     /// importFiles verifies size + SHA and copies into Models/; a wrong file is refused.

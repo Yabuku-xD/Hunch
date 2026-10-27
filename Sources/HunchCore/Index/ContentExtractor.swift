@@ -80,6 +80,7 @@ public struct ContentExtractor: Sendable {
     static func kindLabel(kind: ItemKind, ext: String) -> String {
         switch kind {
         case .app: return "application"
+        case .setting: return "system setting"
         case .folder: return "folder"
         case .file: break
         }

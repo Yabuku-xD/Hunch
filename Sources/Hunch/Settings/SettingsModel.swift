@@ -185,7 +185,7 @@ final class SettingsModel {
         roots = next
         missingRoots = Set(next.filter { !FileManager.default.fileExists(atPath: $0.path) })
         guard let admin else { return }
-        Task { await admin.setRoots(AppRoots.all + next) }
+        Task { await admin.setRoots(Crawler.appRoots + next) }
     }
 
     // MARK: Index

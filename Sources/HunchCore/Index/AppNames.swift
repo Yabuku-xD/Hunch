@@ -10,7 +10,9 @@ public enum AppNames {
     /// All alias keys for `item` (excluding its own name).
     public static func keys(for item: Item, languages: [String]? = nil) -> [String] {
         var out: [String] = []
-        if item.kind == .app || item.path.hasSuffix(".app") {
+        if item.kind == .setting {
+            out += SettingsPanes.aliases(path: item.path, languages: languages ?? preferredLanguages)
+        } else if item.kind == .app || item.path.hasSuffix(".app") {
             out += aliases(
                 bundle: URL(fileURLWithPath: item.path, isDirectory: true),
                 languages: languages ?? preferredLanguages)

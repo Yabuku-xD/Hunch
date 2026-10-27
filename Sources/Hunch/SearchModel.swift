@@ -127,7 +127,7 @@ final class SearchModel {
         guard let result = selectedResult else { return "Open" }
         switch result.item.kind {
         case .app: return RunningApps.shared.isRunning(result.item.path) ? "Switch To" : "Open"
-        case .folder: return "Open"
+        case .folder, .setting: return "Open"
         case .file: return DefaultApp.name(for: result.item.path).map { "Open in \($0)" } ?? "Open"
         }
     }
@@ -261,11 +261,13 @@ final class SearchModel {
     }
 
     func didShow() {
+        DefaultApp.reset()
         focusToken &+= 1
     }
 
     /// Reopened within 60 s: the old query comes back fully selected so typing replaces it.
     func didRestore() {
+        DefaultApp.reset()
         selectAllToken &+= 1
     }
 

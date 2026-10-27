@@ -112,15 +112,42 @@ plutil -lint "$HELPER_APP/Contents/Info.plist" >/dev/null
 cp THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/THIRD_PARTY_NOTICES.md"
 cp LICENSE "$APP/Contents/Resources/LICENSE"
 
-ICONSET=$(mktemp -d "$TMP_ROOT/AppIcon.XXXXXX")/AppIcon.iconset
-mkdir -p "$ICONSET"
-if swift Scripts/make-icon.swift "$ICONSET/icon_512x512@2x.png"; then
-  for s in 16 32 128 256 512; do
-    sips -z $s $s "$ICONSET/icon_512x512@2x.png" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
-    d=$((s * 2))
-    [[ $d -eq 1024 ]] || sips -z $d $d "$ICONSET/icon_512x512@2x.png" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
-  done
-  iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+# App icon. With Xcode's actool: a layered AppIcon.icon (orb over a pearl tile in light mode, a night tile in dark mode)
+# compiled to Assets.car plus an .icns fallback. Without it (Command Line Tools only): the night icon as a plain .icns.
+ICON_DIR=$(mktemp -d "$TMP_ROOT/AppIcon.XXXXXX")
+ACTOOL=$(xcrun --find actool 2>/dev/null || ls -d /Applications/Xcode*.app/Contents/Developer/usr/bin/actool 2>/dev/null | head -1 || true)
+icon_ok=0
+if [[ -n $ACTOOL ]]; then
+  mkdir -p "$ICON_DIR/AppIcon.icon/Assets" "$ICON_DIR/out"
+  cp Scripts/AppIcon.icon.json "$ICON_DIR/AppIcon.icon/icon.json"
+  if swift Scripts/make-icon.swift "$ICON_DIR/AppIcon.icon/Assets/orb.png" --mark \
+    && swift Scripts/make-icon.swift "$ICON_DIR/AppIcon.icon/Assets/tile-light.png" --background light \
+    && swift Scripts/make-icon.swift "$ICON_DIR/AppIcon.icon/Assets/tile-dark.png" --background dark \
+    && "$ACTOOL" "$ICON_DIR/AppIcon.icon" --compile "$ICON_DIR/out" --platform macosx --minimum-deployment-target 26.0 \
+      --app-icon AppIcon --output-partial-info-plist "$ICON_DIR/out/partial.plist" >/dev/null; then
+    cp "$ICON_DIR/out/Assets.car" "$APP/Contents/Resources/Assets.car"
+    cp "$ICON_DIR/out/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+    /usr/libexec/PlistBuddy -c 'Add :CFBundleIconName string AppIcon' "$APP/Contents/Info.plist"
+    icon_ok=1
+  else
+    echo "warning: actool failed; falling back to the plain .icns" >&2
+  fi
+fi
+if (( icon_ok == 0 )); then
+  ICONSET=$ICON_DIR/AppIcon.iconset
+  mkdir -p "$ICONSET"
+  if swift Scripts/make-icon.swift "$ICONSET/icon_512x512@2x.png"; then
+    for s in 16 32 128 256 512; do
+      sips -z $s $s "$ICONSET/icon_512x512@2x.png" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
+      d=$((s * 2))
+      [[ $d -eq 1024 ]] || sips -z $d $d "$ICONSET/icon_512x512@2x.png" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+    done
+    iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+    icon_ok=1
+  fi
+fi
+if (( icon_ok == 1 )); then
+  # The helper shows in Activity Monitor only; it keeps the night .icns.
   cp "$APP/Contents/Resources/AppIcon.icns" "$HELPER_APP/Contents/Resources/AppIcon.icns"
 else
   echo "warning: icon generation failed; shipping without an icon" >&2

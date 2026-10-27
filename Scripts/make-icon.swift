@@ -1,5 +1,11 @@
-// Draws the Hunch app icon as a 1024 px PNG with plain Core Graphics: a glass orb on a night tile with a four-point
-// glint caught inside it (the moment a hunch lands). Usage: swift Scripts/make-icon.swift <out.png> [--mark]  (--mark: no tile, for docs)
+// Draws the Hunch app icon as a 1024 px PNG with plain Core Graphics: a glass orb on a tile with a four-point glint
+// caught inside it (the moment a hunch lands).
+//   swift Scripts/make-icon.swift <out.png> [--light]        the whole icon on its tile (night, or pearl with --light)
+//   swift Scripts/make-icon.swift <out.png> --mark           the orb alone, no tile (docs, and the .icon foreground)
+//   swift Scripts/make-icon.swift <out.png> --background dark|light
+//                                                            the tile alone, full bleed (the .icon background layers)
+// Scripts/make-app.sh builds Hunch.icon from the --mark and --background layers, so macOS shows the pearl tile in
+// light mode and the night tile in dark mode.
 import CoreGraphics
 import Foundation
 import ImageIO
@@ -9,6 +15,8 @@ let size = 1024
 let args = CommandLine.arguments
 let out = URL(fileURLWithPath: args.count > 1 ? args[1] : "icon_1024.png")
 let markOnly = args.contains("--mark")
+let backgroundOnly = args.firstIndex(of: "--background").map { args.count > $0 + 1 ? args[$0 + 1] : "dark" }
+let light = backgroundOnly.map { $0 == "light" } ?? args.contains("--light")
 
 func rgb(_ hex: UInt32, _ alpha: CGFloat = 1) -> CGColor {
     CGColor(
@@ -63,9 +71,9 @@ func gradientStroke(_ path: CGPath, width: CGFloat, _ g: CGGradient, from: CGPoi
     ctx.restoreGState()
 }
 
-// macOS icon grid: 824 pt tile inside the 1024 canvas.
-let tile = CGRect(x: 100, y: 100, width: 824, height: 824)
-let tilePath = squircle(tile)
+// macOS icon grid: 824 pt tile inside the 1024 canvas; a background layer fills the canvas (macOS masks it).
+let tile = backgroundOnly != nil ? CGRect(x: 0, y: 0, width: 1024, height: 1024) : CGRect(x: 100, y: 100, width: 824, height: 824)
+let tilePath = backgroundOnly != nil ? CGPath(rect: tile, transform: nil) : squircle(tile)
 
 // The pebble: a glass orb, a little above centre so its caustic has room below.
 let pebble = CGRect(x: 236, y: 220, width: 552, height: 552)
@@ -73,21 +81,25 @@ let pebblePath = CGPath(ellipseIn: pebble, transform: nil)
 let g = CGPoint(x: 592, y: 420)  // the glint
 
 if !markOnly {
-    // Drop shadow: soft and low, like the system icons.
-    ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: 14), blur: 28, color: rgb(0x000000, 0.38))
-    ctx.addPath(tilePath)
-    ctx.setFillColor(rgb(0x14151F))
-    ctx.fillPath()
-    ctx.restoreGState()
+    // Drop shadow: soft and low, like the system icons (a background layer gets the system's own).
+    if backgroundOnly == nil {
+        ctx.saveGState()
+        ctx.setShadow(offset: CGSize(width: 0, height: 14), blur: 28, color: rgb(0x000000, light ? 0.22 : 0.38))
+        ctx.addPath(tilePath)
+        ctx.setFillColor(rgb(light ? 0xE4E5EE : 0x14151F))
+        ctx.fillPath()
+        ctx.restoreGState()
+    }
 
     ctx.saveGState()
     ctx.addPath(tilePath)
     ctx.clip()
-    // Night tile: deep ink, lighter at the top like light falling on it.
+    // Night tile: deep ink, lighter at the top like light falling on it. Pearl tile: near-white to a lilac grey.
     ctx.drawLinearGradient(
-        gradient([(0x2E3046, 1, 0), (0x17182A, 1, 0.5), (0x0B0C14, 1, 1)]),
-        start: CGPoint(x: 512, y: 100), end: CGPoint(x: 512, y: 924), options: [])
+        light
+            ? gradient([(0xFDFDFF, 1, 0), (0xEDEEF6, 1, 0.5), (0xD9DBE8, 1, 1)])
+            : gradient([(0x2E3046, 1, 0), (0x17182A, 1, 0.5), (0x0B0C14, 1, 1)]),
+        start: CGPoint(x: 512, y: tile.minY), end: CGPoint(x: 512, y: tile.maxY), options: [])
     // Warm bloom from the glint.
     ctx.drawRadialGradient(
         gradient([(0xFFB45C, 0.26, 0), (0xFF8A3D, 0.08, 0.45), (0xFF8A3D, 0, 1)]),
@@ -105,19 +117,34 @@ if !markOnly {
     ctx.translateBy(x: 512, y: 782)
     ctx.scaleBy(x: 1, y: 0.16)
     ctx.drawRadialGradient(
-        gradient([(0x000000, 0.55, 0), (0x000000, 0, 1)]),
+        gradient([(0x000000, light ? 0.3 : 0.55, 0), (0x000000, 0, 1)]),
         startCenter: .zero, startRadius: 0, endCenter: .zero, endRadius: 250, options: [])
     ctx.restoreGState()
     // Top sheen: the glass tile catches light along its upper half.
     ctx.drawLinearGradient(
-        gradient([(0xFFFFFF, 0.07, 0), (0xFFFFFF, 0, 0.35)]),
-        start: CGPoint(x: 512, y: 100), end: CGPoint(x: 512, y: 924), options: [])
+        gradient([(0xFFFFFF, light ? 0.5 : 0.07, 0), (0xFFFFFF, 0, 0.35)]),
+        start: CGPoint(x: 512, y: tile.minY), end: CGPoint(x: 512, y: tile.maxY), options: [])
     ctx.restoreGState()
+}
 
+if !markOnly, backgroundOnly == nil {
     // Tile rim: bright at the top edge, gone at the bottom.
     gradientStroke(
         tilePath, width: 4, gradient([(0xFFFFFF, 0.28, 0), (0xFFFFFF, 0.06, 0.5), (0xFFFFFF, 0.02, 1)]),
         from: CGPoint(x: 512, y: 100), to: CGPoint(x: 512, y: 924))
+}
+
+func save() {
+    guard let image = ctx.makeImage(),
+        let dest = CGImageDestinationCreateWithURL(out as CFURL, UTType.png.identifier as CFString, 1, nil)
+    else { fatalError("no image") }
+    CGImageDestinationAddImage(dest, image, nil)
+    guard CGImageDestinationFinalize(dest) else { fatalError("write failed") }
+}
+
+if backgroundOnly != nil {
+    save()
+    exit(0)
 }
 
 // Orb body.
@@ -209,8 +236,4 @@ ctx.setFillColor(rgb(0xFFFFFF))
 ctx.fillPath()
 ctx.restoreGState()
 
-guard let image = ctx.makeImage(),
-    let dest = CGImageDestinationCreateWithURL(out as CFURL, UTType.png.identifier as CFString, 1, nil)
-else { fatalError("no image") }
-CGImageDestinationAddImage(dest, image, nil)
-guard CGImageDestinationFinalize(dest) else { fatalError("write failed") }
+save()

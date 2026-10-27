@@ -51,7 +51,7 @@ mkdir -p "$DIST"
 ZIP=$DIST/$NAME-$VERSION-arm64.zip
 DMG=$DIST/$NAME-$VERSION-arm64.dmg
 ditto -c -k --keepParent "$APP" "$ZIP"
-hdiutil create -volname "$NAME" -srcfolder "$APP" -ov -format ULFO "$DMG" >/dev/null
+Scripts/make-dmg.sh "$APP" "$DMG"
 ( cd "$DIST" && shasum -a 256 "$(basename "$ZIP")" "$(basename "$DMG")" > SHA256SUMS.txt )
 cat "$DIST/SHA256SUMS.txt"
 ls -lh "$DIST"

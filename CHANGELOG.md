@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-27
+
+### Changed
+
+- New name and icon: BetterSpotlight is now **Hunch**. The app, bundle id (`app.hunch.Hunch`), data folder
+  (`~/Library/Application Support/Hunch`) and repository moved; GitHub redirects the old URL.
+- The menu bar item uses the new mark (an orb with a glint) instead of a magnifier.
+
+### Fixed
+
+- Updating from 1.0.0 keeps the index, the downloaded model and settings: they move to the new name on first launch.
+- `IndexCoordinatorTests` no longer fail when FSEvents delivery is slow on a busy machine.
+- The perf gate's hover checks measured the cost of showing the panel, not of hovering; they now compare the shown
+  panel with and without a hovered row.
+
 ## [1.0.0] - 2026-10-27
 
 ### Added
@@ -23,5 +38,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Files that look like secrets are indexed by name only.
 - No network access except the model download you start and links you click.
 
-[Unreleased]: https://github.com/Yabuku-xD/BetterSpotlight/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Yabuku-xD/BetterSpotlight/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Yabuku-xD/Hunch/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Yabuku-xD/Hunch/releases/tag/v1.0.0

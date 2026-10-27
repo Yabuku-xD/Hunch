@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Builds build/BetterSpotlight.app: the release binary plus llama.framework (ggml-org's pinned b11669 xcframework,
+# Builds build/Hunch.app: the release binary plus llama.framework (ggml-org's pinned b11669 xcframework,
 # thinned to arm64), Info.plist, icon and notices, ad-hoc signed inside-out.
-# The embedding model is NOT bundled; ModelStore resolves or downloads it at runtime (Sources/SpotCore/Model).
+# The embedding model is NOT bundled; ModelStore resolves or downloads it at runtime (Sources/HunchCore/Model).
 # Env: VERSION (default 1.0.0), BUILD_NUMBER (default: commit count, else 1).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-NAME=BetterSpotlight
-BUNDLE_ID=${BUNDLE_ID:-app.betterspotlight.BetterSpotlight}  # neutral default; publishers pass their own reverse-DNS id
-VERSION=${VERSION:-1.0.0}
+NAME=Hunch
+BUNDLE_ID=${BUNDLE_ID:-app.hunch.Hunch}  # neutral default; publishers pass their own reverse-DNS id
+VERSION=${VERSION:-1.1.0}
 BUILD_NUMBER=${BUILD_NUMBER:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}
 MIN_MACOS=26.0
 APP=build/$NAME.app
@@ -17,8 +17,8 @@ TMP_ROOT=${TMPDIR:-/tmp}
 
 say() { printf '==> %s\n' "$*"; }
 
-if [[ ${BS_LLAMA:-} == homebrew ]]; then
-  echo "error: make-app.sh bundles the pinned xcframework only; unset BS_LLAMA" >&2
+if [[ ${HUNCH_LLAMA:-} == homebrew ]]; then
+  echo "error: make-app.sh bundles the pinned xcframework only; unset HUNCH_LLAMA" >&2
   exit 1
 fi
 
@@ -116,10 +116,10 @@ codesign --verify --deep --strict "$APP"
 echo "CODESIGN_OK"
 say "built $APP ($(du -sh "$APP" | cut -f1))"
 
-[[ ${BS_SKIP_LAUNCH_CHECK:-0} == 1 ]] || ./Scripts/verify-app.sh "$APP" || exit 1
+[[ ${HUNCH_SKIP_LAUNCH_CHECK:-0} == 1 ]] || ./Scripts/verify-app.sh "$APP" || exit 1
 # §D UI gate in the verify chain: release `--measure` (panel_show / first_results / commit p50+p95, idle CPU).
 # Its PERF_GATE line is the verdict; a miss is printed, not fatal, so the remaining checks still report.
-if [[ ${BS_SKIP_PERF:-0} != 1 ]]; then
+if [[ ${HUNCH_SKIP_PERF:-0} != 1 ]]; then
   say "UI perf gate (--measure)"
   ./Scripts/perf-gate.sh --measure-only || echo "PERF_GATE_UI=FAIL"
 fi

@@ -1,9 +1,10 @@
-# BetterSpotlight
+<p align="center"><img src="docs/icon.png" width="128" alt="Hunch icon: a glass orb with a glint"></p>
 
-A fast, private Spotlight alternative for macOS. Find any app, file or folder, and the words inside them, on your Mac,
-offline.
+<h1 align="center">Hunch</h1>
 
-![BetterSpotlight panel](docs/hero.png)
+<p align="center">Find the thing you half remember. Apps, files and folders, and the words inside them, on your Mac, offline.</p>
+
+![Hunch panel](docs/hero.png)
 
 ![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue) ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![macOS 26+](https://img.shields.io/badge/macOS-26%2B-black) ![Apple silicon](https://img.shields.io/badge/arch-arm64-lightgrey)
@@ -26,17 +27,17 @@ Out of scope on purpose: clipboard history, calculator, snippets, extensions, AI
 - Everything runs on your Mac. There is no telemetry and no account.
 - The only network call is the optional model download from Hugging Face, plus "Check on GitHub" in Settings → About
   if you click it.
-- The index lives in `~/Library/Application Support/BetterSpotlight`. Files that look like secrets are indexed by name
+- The index lives in `~/Library/Application Support/Hunch`. Files that look like secrets are indexed by name
   only.
 
 ## Install
 
-1. Download `BetterSpotlight-<version>-arm64.zip` from the Releases page, open it and drag BetterSpotlight.app to
+1. Download `Hunch-<version>-arm64.zip` from the Releases page, open it and drag Hunch.app to
    /Applications.
 2. Double-click it. macOS says it "cannot verify the developer". Click **Done**.
-3. Open **System Settings → Privacy & Security**, scroll to Security, find "BetterSpotlight was blocked", click
+3. Open **System Settings → Privacy & Security**, scroll to Security, find "Hunch was blocked", click
    **Open Anyway** and authenticate.
-4. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/BetterSpotlight.app`.
+4. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/Hunch.app`.
 
 There is no paid Apple Developer ID yet; the build is ad-hoc signed and reproducible from source with
 `Scripts/make-app.sh`. Because ad-hoc signatures change with every build, **Full Disk Access and Speech Recognition
@@ -65,36 +66,41 @@ Requirements: Apple silicon, macOS 26 or later, Xcode 27 or the Command Line Too
 
 ```sh
 git clone <this repository>
-cd BetterSpotlight
+cd Hunch
 swift build
 ./Scripts/test.sh          # unit and integration tests
-./Scripts/make-app.sh      # build/BetterSpotlight.app, ad-hoc signed
+./Scripts/make-app.sh      # build/Hunch.app, ad-hoc signed
 ./Scripts/install.sh       # optional: copy it to /Applications
 ```
 
 ## Benchmarks
 
-Measured on an Apple M5 Pro with 24 GB of RAM, macOS 27.2, release build, during this release's verification run
-(2026-10-27). These are measurements, not targets. Panel numbers come from `Scripts/perf-gate.sh` (the app's
-`--measure` mode, 20 shows and 20 typed characters per run); engine numbers come from `spot-bench` on a synthetic
-corpus of 200,000 names and 100,000 vectors.
+Measured on an Apple M5 Pro with 24 GB of RAM, macOS 27.2, release build, during the 1.1.0 verification runs
+(2026-10-27, seven runs, with `spotlightknowledged` using one core in the background). These are measurements, not
+targets. Panel numbers come from `Scripts/perf-gate.sh` (the app's `--measure` mode, 20 shows and 20 typed
+characters per run); engine numbers come from `hunch-bench` on a synthetic corpus of 200,000 names and 100,000
+vectors.
 
 | Metric | p50 | p95 |
 |---|---|---|
-| Hotkey → panel on screen | 14.8–15.2 ms | 17.5–20.0 ms |
-| Keystroke → first results on screen | 18.7–21.6 ms | 26.2–27.5 ms |
-| Results applied → frame committed | 8.2–8.5 ms | 12.3–13.5 ms |
+| Hotkey → panel on screen | 15.5–16.6 ms | 18.4–24.0 ms |
+| Keystroke → first results on screen | 20.8–21.9 ms | 24.4–32.8 ms |
+| Results applied → frame committed | 8.9–10.4 ms | 13.4–15.5 ms |
 | Name search, 200k items | | 4.1 ms |
 | Vector search, 100k vectors | | 1.9 ms |
 | Query embedding | | 5.1 ms |
 
 | Metric | Value |
 |---|---|
-| Idle CPU, panel hidden | 0.04 % |
+| Idle CPU, panel hidden | 0.05 % |
+| CPU and memory added by hovering rows | 0 % and 0.0 MB |
 | Idle memory (RSS), model not loaded | 89 MB |
 | Memory with the model loaded | 634 MB |
 | Crawl throughput | 39,700 items/s |
 | Document chunks embedded | 779 /s |
+
+Panel show (target 14 ms) and frame commit (target 12 ms) are still over their p95 targets; see the open performance
+issue.
 
 ## Comparison (as of October 2026)
 
@@ -105,13 +111,16 @@ corpus of 200,000 names and 100,000 vectors.
 | Alfred | via Spotlight | no | no | no | yes | no | free / paid |
 | DigUp | yes | yes | no | yes | yes | yes (MIT) | free |
 | Tinycast | no | no | no | no | yes | yes (AGPL-3.0) | free |
-| BetterSpotlight | yes | yes | yes | yes | yes | yes (MIT) | free |
+| Hunch | yes | yes | yes | yes | yes | yes (MIT) | free |
 
 Feature columns only; this table makes no claims about other apps' speed. "n/v" = not verified.
 
 ## FAQ
 
-- **Why not just Spotlight?** BetterSpotlight searches meaning as well as words, reads speech and video frames, and
+- **Why the name?** You rarely remember a file's exact name, only a hunch of what was in it. Hunch finds it from that.
+- **I used BetterSpotlight 1.0.0.** That was this app's first name. Hunch 1.1.0 moves your index, the model and your
+  settings over on first launch. Delete `/Applications/BetterSpotlight.app` afterwards.
+- **Why not just Spotlight?** Hunch searches meaning as well as words, reads speech and video frames, and
   never leaves your Mac.
 - **Why "Open Anyway"?** The app is not notarized (no Developer ID yet). See Install.
 - **Why do permissions reset after an update?** Ad-hoc signatures change with each build, and macOS ties grants to the
@@ -121,8 +130,8 @@ Feature columns only; this table makes no claims about other apps' speed. "n/v" 
   The index size depends on your files.
 - **Can it reuse DigUp's or the Hugging Face cache's model?** Yes, it finds both.
 - **Intel Macs?** No, Apple silicon only.
-- **Uninstall?** Quit it, then delete `/Applications/BetterSpotlight.app`,
-  `~/Library/Application Support/BetterSpotlight` and the app's preferences in `~/Library/Preferences`.
+- **Uninstall?** Quit it, then delete `/Applications/Hunch.app`,
+  `~/Library/Application Support/Hunch` and the app's preferences in `~/Library/Preferences`.
 
 ## Credits
 

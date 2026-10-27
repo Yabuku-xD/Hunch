@@ -2,13 +2,13 @@
 # Builds a release locally: version bump -> make-app -> verify-app -> perf-gate -> ad-hoc hardened-runtime signature
 # -> zip + dmg -> SHA256SUMS.txt, then prints the `gh release create` command. It never runs gh, tags or pushes.
 #   Scripts/release.sh 1.0.0            # BUILD_NUMBER defaults to the commit count
-#   BS_SKIP_PERF=1 Scripts/release.sh 1.0.1   # skip the perf gate (do not publish such a build)
+#   HUNCH_SKIP_PERF=1 Scripts/release.sh 1.0.1   # skip the perf gate (do not publish such a build)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSION=${1:?usage: Scripts/release.sh <version>  (e.g. 1.0.0)}
 [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "error: version must be X.Y.Z" >&2; exit 1; }
-NAME=BetterSpotlight
+NAME=Hunch
 APP=build/$NAME.app
 DIST=dist
 export VERSION
@@ -19,12 +19,12 @@ say() { printf '==> %s\n' "$*"; }
 grep -q "^## \[$VERSION\]" CHANGELOG.md || { echo "error: CHANGELOG.md has no '## [$VERSION]' section" >&2; exit 1; }
 
 say "make-app $VERSION ($BUILD_NUMBER)"
-BS_SKIP_LAUNCH_CHECK=1 BS_SKIP_PERF=1 Scripts/make-app.sh
+HUNCH_SKIP_LAUNCH_CHECK=1 HUNCH_SKIP_PERF=1 Scripts/make-app.sh
 
 say "verify-app"
 Scripts/verify-app.sh "$APP"
 
-if [[ ${BS_SKIP_PERF:-0} != 1 ]]; then
+if [[ ${HUNCH_SKIP_PERF:-0} != 1 ]]; then
   say "perf-gate"
   Scripts/perf-gate.sh
 fi

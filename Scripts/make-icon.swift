@@ -1,12 +1,14 @@
-// Draws the BetterSpotlight app icon (a neutral glass magnifier) as a 1024 px PNG with plain Core Graphics.
-// Usage: swift Scripts/make-icon.swift <out.png>
+// Draws the Hunch app icon as a 1024 px PNG with plain Core Graphics: a glass orb on a night tile with a four-point
+// glint caught inside it (the moment a hunch lands). Usage: swift Scripts/make-icon.swift <out.png> [--mark]  (--mark: no tile, for docs)
 import CoreGraphics
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
 let size = 1024
-let out = URL(fileURLWithPath: CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "icon_1024.png")
+let args = CommandLine.arguments
+let out = URL(fileURLWithPath: args.count > 1 ? args[1] : "icon_1024.png")
+let markOnly = args.contains("--mark")
 
 func rgb(_ hex: UInt32, _ alpha: CGFloat = 1) -> CGColor {
     CGColor(
@@ -20,61 +22,125 @@ guard let ctx = CGContext(
     bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
 else { fatalError("no context") }
 ctx.setShouldAntialias(true)
-// Flip to a top-left origin so the coordinates below read like a design file.
 ctx.translateBy(x: 0, y: CGFloat(size))
 ctx.scaleBy(x: 1, y: -1)
 
-// macOS icon grid: 824 pt tile inside the 1024 canvas, ~185 pt continuous-ish corner radius.
+func gradient(_ stops: [(UInt32, CGFloat, CGFloat)]) -> CGGradient {
+    CGGradient(colorsSpace: space, colors: stops.map { rgb($0.0, $0.1) } as CFArray, locations: stops.map { $0.2 })!
+}
+
+// macOS icon grid: 824 pt tile inside the 1024 canvas.
 let tile = CGRect(x: 100, y: 100, width: 824, height: 824)
 let tilePath = CGPath(roundedRect: tile, cornerWidth: 185, cornerHeight: 185, transform: nil)
 
-// Soft contact shadow under the tile (the only blur; it grounds the tile like system icons).
+if !markOnly {
+    ctx.saveGState()
+    ctx.setShadow(offset: CGSize(width: 0, height: 12), blur: 30, color: rgb(0x000000, 0.35))
+    ctx.addPath(tilePath)
+    ctx.setFillColor(rgb(0x14151F))
+    ctx.fillPath()
+    ctx.restoreGState()
+
+    // Night tile: deep ink, a little lighter at the top like light falling on it.
+    ctx.saveGState()
+    ctx.addPath(tilePath)
+    ctx.clip()
+    ctx.drawLinearGradient(gradient([(0x2A2C40, 1, 0), (0x15161F, 1, 0.55), (0x0C0D13, 1, 1)]),
+                           start: CGPoint(x: 512, y: 100), end: CGPoint(x: 512, y: 924), options: [])
+    // Warm bloom behind the glint, so the light seems to come from it.
+    ctx.drawRadialGradient(gradient([(0xFFB45C, 0.30, 0), (0xFF8A3D, 0.10, 0.45), (0xFF8A3D, 0, 1)]),
+                           startCenter: CGPoint(x: 600, y: 420), startRadius: 0,
+                           endCenter: CGPoint(x: 600, y: 420), endRadius: 460, options: [])
+    ctx.restoreGState()
+
+    // Inner top edge highlight (glass-tile rim).
+    ctx.saveGState()
+    ctx.addPath(tilePath)
+    ctx.setStrokeColor(rgb(0xFFFFFF, 0.10))
+    ctx.setLineWidth(3)
+    ctx.strokePath()
+    ctx.restoreGState()
+}
+
+// The pebble: a glass orb, centred.
+let pebble = CGRect(x: 212, y: 212, width: 600, height: 600)
+let pebblePath = CGPath(ellipseIn: pebble, transform: nil)
 ctx.saveGState()
-ctx.setShadow(offset: CGSize(width: 0, height: 10), blur: 28, color: rgb(0x000000, 0.28))
-ctx.addPath(tilePath)
-ctx.setFillColor(rgb(0xF4F4F6))
+ctx.setShadow(offset: CGSize(width: 0, height: 22), blur: 40, color: rgb(0x000000, markOnly ? 0.25 : 0.55))
+ctx.addPath(pebblePath)
+ctx.setFillColor(rgb(0x3A3D55, 0.9))
 ctx.fillPath()
 ctx.restoreGState()
 
-// Hairline edge so the light tile holds up on light backgrounds.
-ctx.addPath(tilePath)
-ctx.setStrokeColor(rgb(0x000000, 0.08))
-ctx.setLineWidth(2)
+ctx.saveGState()
+ctx.addPath(pebblePath)
+ctx.clip()
+// Body: cool glass, brighter toward the lit upper-right.
+ctx.drawLinearGradient(gradient([(0xC9D3FF, 0.95, 0), (0x7A82B8, 0.85, 0.5), (0x3B3F63, 0.95, 1)]),
+                       start: CGPoint(x: 660, y: 212), end: CGPoint(x: 330, y: 812), options: [])
+// Warm light picked up from the glint.
+ctx.drawRadialGradient(gradient([(0xFFD9A0, 0.75, 0), (0xFFB45C, 0.25, 0.4), (0xFFB45C, 0, 1)]),
+                       startCenter: CGPoint(x: 598, y: 418), startRadius: 0,
+                       endCenter: CGPoint(x: 598, y: 418), endRadius: 380, options: [])
+// Bottom inner glow: light refracted through the glass.
+ctx.drawRadialGradient(gradient([(0xFFFFFF, 0.35, 0), (0xFFFFFF, 0, 1)]),
+                       startCenter: CGPoint(x: 470, y: 800), startRadius: 0,
+                       endCenter: CGPoint(x: 470, y: 800), endRadius: 300, options: [])
+ctx.restoreGState()
+
+// Rim: a bright hairline on the lit side.
+ctx.saveGState()
+ctx.addPath(pebblePath)
+ctx.setStrokeColor(rgb(0xFFFFFF, 0.55))
+ctx.setLineWidth(5)
 ctx.strokePath()
+ctx.restoreGState()
 
-// Magnifier geometry: lens up-left, handle toward bottom-right at 45°.
-let center = CGPoint(x: 452, y: 452)
-let radius: CGFloat = 196
-let ring: CGFloat = 54
-let graphite = rgb(0x2E2F33)
-
-// Handle: a capsule from the ring's edge outward.
-let angle = CGFloat.pi / 4
-let start = CGPoint(x: center.x + cos(angle) * (radius + ring / 2 - 6), y: center.y + sin(angle) * (radius + ring / 2 - 6))
-let end = CGPoint(x: center.x + cos(angle) * (radius + 230), y: center.y + sin(angle) * (radius + 230))
+// Soft secondary reflection, lower-left.
+ctx.saveGState()
+ctx.setStrokeColor(rgb(0xFFFFFF, 0.35))
+ctx.setLineWidth(16)
 ctx.setLineCap(.round)
-ctx.setStrokeColor(graphite)
-ctx.setLineWidth(84)
-ctx.move(to: start)
-ctx.addLine(to: end)
+let c = CGPoint(x: pebble.midX, y: pebble.midY)
+ctx.addArc(center: c, radius: 236, startAngle: .pi * 0.62, endAngle: .pi * 0.86, clockwise: false)
 ctx.strokePath()
+ctx.restoreGState()
 
-// Lens glass: a flat, slightly cool tint — reads as glass against the neutral tile.
-let lens = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
-ctx.setFillColor(rgb(0xD9E3EC))
-ctx.fillEllipse(in: lens)
-
-// Specular highlight: one crescent arc on the upper-left, the cue that it is glass.
-ctx.setStrokeColor(rgb(0xFFFFFF, 0.9))
-ctx.setLineWidth(26)
-ctx.setLineCap(.round)
-ctx.addArc(center: center, radius: radius - 52, startAngle: .pi * 1.08, endAngle: .pi * 1.42, clockwise: false)
-ctx.strokePath()
-
-// Ring.
-ctx.setStrokeColor(graphite)
-ctx.setLineWidth(ring)
-ctx.strokeEllipse(in: lens)
+// The glint: a four-point star with concave sides, caught in the orb's upper-right, where the light lands.
+func star(center p: CGPoint, long: CGFloat, short: CGFloat, pinch: CGFloat) -> CGPath {
+    let path = CGMutablePath()
+    let tips = [CGPoint(x: p.x, y: p.y - long), CGPoint(x: p.x + short, y: p.y),
+                CGPoint(x: p.x, y: p.y + long), CGPoint(x: p.x - short, y: p.y)]
+    path.move(to: tips[0])
+    for i in 0..<4 {
+        let a = tips[i], b = tips[(i + 1) % 4]
+        let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+        let ctrl = CGPoint(x: p.x + (mid.x - p.x) * pinch, y: p.y + (mid.y - p.y) * pinch)
+        path.addQuadCurve(to: b, control: ctrl)
+    }
+    path.closeSubpath()
+    return path
+}
+let g = CGPoint(x: 598, y: 418)
+ctx.saveGState()
+ctx.setShadow(offset: .zero, blur: 46, color: rgb(0xFFC277, 0.95))
+ctx.addPath(star(center: g, long: 150, short: 128, pinch: 0.16))
+ctx.clip()
+ctx.drawRadialGradient(gradient([(0xFFFFFF, 1, 0), (0xFFF1D6, 1, 0.35), (0xFFC277, 1, 1)]),
+                       startCenter: g, startRadius: 0, endCenter: g, endRadius: 150, options: [])
+ctx.restoreGState()
+// Glow pass (clip removed the shadow): draw the star again with its halo.
+ctx.saveGState()
+ctx.setShadow(offset: .zero, blur: 60, color: rgb(0xFFB45C, 0.9))
+ctx.addPath(star(center: g, long: 150, short: 128, pinch: 0.16))
+ctx.setFillColor(rgb(0xFFF6E6))
+ctx.fillPath()
+ctx.restoreGState()
+ctx.saveGState()
+ctx.addPath(star(center: g, long: 100, short: 86, pinch: 0.14))
+ctx.setFillColor(rgb(0xFFFFFF))
+ctx.fillPath()
+ctx.restoreGState()
 
 guard let image = ctx.makeImage(),
       let dest = CGImageDestinationCreateWithURL(out as CFURL, UTType.png.identifier as CFString, 1, nil)

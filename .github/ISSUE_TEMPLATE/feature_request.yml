@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        BetterSpotlight does one thing: it finds and opens apps, files and folders, including the text in documents,
+        Hunch does one thing: it finds and opens apps, files and folders, including the text in documents,
         images, video and audio, and their meaning. Requests outside that scope are closed: clipboard history,
         calculator, snippets, quicklinks, extensions, AI chat, notes, emoji, window management, system actions,
         calendar, dictionary, per-app hotkeys and backup or import.

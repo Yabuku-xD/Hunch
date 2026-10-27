@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the SpotCore test suite reliably on this Mac. Exit code = swift test's exit code.
+# Runs the HunchCore test suite reliably on this Mac. Exit code = swift test's exit code.
 #
 # Root cause of the intermittent "plugin for module 'TestingMacros' not found":
 #   * The CLT swift-build (default build system) passes the compiler -load-resolved-plugin for
@@ -18,14 +18,14 @@ cd "$(dirname "$0")/.."
 CLT=/Library/Developer/CommandLineTools
 PLUGIN=$CLT/usr/lib/swift/host/plugins/testing/libTestingMacros.dylib
 XCODE=/Applications/Xcode-beta.app/Contents/Developer
-LOG_DIR=${TMPDIR:-/tmp}/betterspotlight-tests
+LOG_DIR=${TMPDIR:-/tmp}/hunch-tests
 mkdir -p "$LOG_DIR"
 
-# Builds only the test targets and what they depend on (SpotCoreTests -> SpotCore; BetterSpotlightTests -> the app
-# target, when Tests/BetterSpotlightTests exists), then runs both suites. Extra script args go to `swift test`
+# Builds only the test targets and what they depend on (HunchCoreTests -> HunchCore; HunchTests -> the app
+# target, when Tests/HunchTests exists), then runs both suites. Extra script args go to `swift test`
 # (e.g. --filter Engine).
-TEST_TARGETS=(SpotCoreTests)
-[[ -d Tests/BetterSpotlightTests ]] && TEST_TARGETS+=(BetterSpotlightTests)
+TEST_TARGETS=(HunchCoreTests)
+[[ -d Tests/HunchTests ]] && TEST_TARGETS+=(HunchTests)
 run() { # $1 label, $2 scratch, $3 "clt" to pass the plugin flag, rest: swift test args
   local label=$1 scratch=$2 plugin=$3; shift 3
   local log="$LOG_DIR/$label.log" flags=()

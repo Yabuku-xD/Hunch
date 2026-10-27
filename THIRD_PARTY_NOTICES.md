@@ -1,6 +1,6 @@
 # Third-party notices
 
-BetterSpotlight bundles or adapts the following third-party software. Each is used under its license, reproduced
+Hunch bundles or adapts the following third-party software. Each is used under its license, reproduced
 below.
 
 ## llama.cpp and ggml (bundled framework)
@@ -9,7 +9,7 @@ below.
 llama.cpp release b11669 xcframework (https://github.com/ggml-org/llama.cpp/releases/tag/b11669), built from
 https://github.com/ggml-org/llama.cpp and https://github.com/ggml-org/ggml. License: MIT.
 
-The unsupported local build path (`BS_LLAMA=homebrew`) links the Homebrew llama.cpp and ggml kegs instead, which pull
+The unsupported local build path (`HUNCH_LLAMA=homebrew`) links the Homebrew llama.cpp and ggml kegs instead, which pull
 in libomp (LLVM OpenMP runtime, Apache-2.0 WITH LLVM-exception). Release builds do not use or bundle it.
 
     MIT License
@@ -35,7 +35,7 @@ in libomp (LLVM OpenMP runtime, Apache-2.0 WITH LLVM-exception). Release builds 
 https://github.com/ARahim3/DigUp, MIT License. Source files that adapt DigUp code carry the comment
 `// Adapted from DigUp (MIT, github.com/ARahim3/DigUp) <file>` and are listed here.
 
-Adapted files: none. `Sources/SpotCore/Model/ModelStore.swift` pins the same model repository, revision, file
+Adapted files: none. `Sources/HunchCore/Model/ModelStore.swift` pins the same model repository, revision, file
 sizes and SHA-256 digests as DigUp's `Sources/DigUpKit/ModelFiles.swift` (facts about third-party files, marked with
 a source comment); its download, resume and verification code was written independently. DigUp issues/PRs informed design and test scenarios only
 (DU#16 Unicode normalization, DU#49 batched embedding, DU#104 stopword highlighting, DU#139 short chunks,

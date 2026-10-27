@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Proves build/BetterSpotlight.app is self-contained: no /opt/homebrew in any load command or rpath, a valid
+# Proves build/Hunch.app is self-contained: no /opt/homebrew in any load command or rpath, a valid
 # signature, and a 3 s launch (DYLD_PRINT_LIBRARIES=1, cwd=/) that maps no /opt/homebrew image.
 # Kills only the PID it started.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-APP=${1:-build/BetterSpotlight.app}
+APP=${1:-build/Hunch.app}
 APP=$(cd "$APP" && pwd)
 LOG=$(mktemp -d "${TMPDIR:-/tmp}/bs-verify.XXXXXX")
 fail=0
@@ -21,8 +21,8 @@ echo "LSUIElement=$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$APP/Conten
 # S2: license notices ship in the bundle.
 if [[ -s $APP/Contents/Resources/THIRD_PARTY_NOTICES.md && -s $APP/Contents/Resources/LICENSE ]]; then echo "NOTICES_OK"; else echo "NOTICES_MISSING"; fail=1; fi
 # No strings of the dev-only BS_ overrides in the release binary (they are DEBUG-only).
-bs=$(strings "$APP/Contents/MacOS/"* 2>/dev/null | grep -cE '^BS_(HOVER_ROW|PRESS|KEYFOCUS|INDEX_STATE|MODEL_STATE|HOTKEY_STATE|APPEARANCE|SCREEN|FIRST_RUN)' || true)
-echo "BS_OVERRIDE_STRINGS=$bs"
+bs=$(strings "$APP/Contents/MacOS/"* 2>/dev/null | grep -cE '^HUNCH_(HOVER_ROW|PRESS|INDEX_STATE|MODEL_STATE|HOTKEY_STATE|APPEARANCE|SCREEN|FIRST_RUN)' || true)
+echo "HUNCH_OVERRIDE_STRINGS=$bs"
 # S1: every bundled native library matches its recorded sha256.
 STAMP=$APP/Contents/Resources/native-libs.txt
 if [[ -s $STAMP ]] && ( cd "$APP/Contents" && grep -E '^[0-9a-f]{64} ' "$STAMP" | shasum -a 256 -c --quiet ); then
@@ -31,7 +31,7 @@ else
   echo "NATIVE_LIBS_MISMATCH"; fail=1
 fi
 
-( cd / && exec env DYLD_PRINT_LIBRARIES=1 "$APP/Contents/MacOS/BetterSpotlight" >"$LOG/dyld.log" 2>&1 ) &
+( cd / && exec env DYLD_PRINT_LIBRARIES=1 "$APP/Contents/MacOS/Hunch" >"$LOG/dyld.log" 2>&1 ) &
 pid=$!
 sleep 3
 vmmap -w "$pid" 2>/dev/null | grep -Eo '/[^ ]+\.(dylib|so)' | sort -u >"$LOG/mapped.txt"

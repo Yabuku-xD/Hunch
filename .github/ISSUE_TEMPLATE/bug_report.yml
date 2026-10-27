@@ -63,5 +63,5 @@ body:
       label: Logs
       description: |
         Run this in Terminal right after the problem and paste the output. Remove any file names you do not want to share.
-        `log show --predicate 'subsystem == "dev.betterspotlight"' --last 10m --info`
+        `log show --predicate 'subsystem == "dev.hunch"' --last 10m --info`
       render: text

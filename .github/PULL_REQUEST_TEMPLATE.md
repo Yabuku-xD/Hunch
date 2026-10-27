@@ -13,7 +13,7 @@
 ## Performance
 
 <!-- Required when the change touches search, indexing or the keystroke path (SearchView, Rows, SearchModel,
-     SpotCore/Search, SpotCore/Index). Paste the full output of `Scripts/perf-gate.sh` on a release build. -->
+     HunchCore/Search, HunchCore/Index). Paste the full output of `Scripts/perf-gate.sh` on a release build. -->
 
 ## Screenshots
 

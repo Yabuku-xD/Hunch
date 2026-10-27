@@ -1,4 +1,4 @@
-# Contributing to BetterSpotlight
+# Contributing to Hunch
 
 Thanks for helping. Bug reports, fixes and focused features within the scope in the README are welcome.
 
@@ -13,24 +13,24 @@ Thanks for helping. Bug reports, fixes and focused features within the scope in 
 ```sh
 swift build                      # debug build
 ./Scripts/test.sh                # all test suites
-./Scripts/make-app.sh            # build/BetterSpotlight.app (ad-hoc signed)
+./Scripts/make-app.sh            # build/Hunch.app (ad-hoc signed)
 ./Scripts/verify-app.sh          # checks the bundle: links, signature, launch
 ./Scripts/perf-gate.sh           # performance gate, see below
 ```
 
-`perf-gate.sh` writes its logs to `${TMPDIR:-/tmp}/betterspotlight/perf-gate`.
+`perf-gate.sh` writes its logs to `${TMPDIR:-/tmp}/hunch/perf-gate`.
 
 ## Code map
 
-- `Sources/SpotCore/Content`: text extraction, OCR, video frames, speech transcripts.
-- `Sources/SpotCore/Embedding`: llama.cpp bindings, text and image embeddings.
-- `Sources/SpotCore/Index`: crawler, file watcher, incremental index coordinator.
-- `Sources/SpotCore/Search`: name index, full-text and vector legs, fusion (`HybridSearchEngine`).
-- `Sources/SpotCore/Store`: SQLite catalog and content stores.
-- `Sources/SpotCore/Model`: `ModelStore`, which finds, downloads and verifies the model files.
-- `Sources/BetterSpotlight`: the app (panel, rows, onboarding, Settings, hotkey, actions).
-- `Sources/spot-bench`: engine and incremental-index benchmarks.
-- `Tests/`: Swift Testing suites for SpotCore and the app.
+- `Sources/HunchCore/Content`: text extraction, OCR, video frames, speech transcripts.
+- `Sources/HunchCore/Embedding`: llama.cpp bindings, text and image embeddings.
+- `Sources/HunchCore/Index`: crawler, file watcher, incremental index coordinator.
+- `Sources/HunchCore/Search`: name index, full-text and vector legs, fusion (`HybridSearchEngine`).
+- `Sources/HunchCore/Store`: SQLite catalog and content stores.
+- `Sources/HunchCore/Model`: `ModelStore`, which finds, downloads and verifies the model files.
+- `Sources/Hunch`: the app (panel, rows, onboarding, Settings, hotkey, actions).
+- `Sources/hunch-bench`: engine and incremental-index benchmarks.
+- `Tests/`: Swift Testing suites for HunchCore and the app.
 
 ## Style
 
@@ -45,11 +45,11 @@ The gate fails a PR when any of these break:
 
 - **Keystroke path** (`SearchView.swift`, `Rows.swift`, `SearchModel.swift`): no localization lookups per keystroke and no
   `List`, `LazyVStack` or `NSTableView` (U13 grep gate).
-- **Motion** (ANIM_GREP gate over `Sources/BetterSpotlight`): no `repeatForever`, `TimelineView`, timers, display links or
+- **Motion** (ANIM_GREP gate over `Sources/Hunch`): no `repeatForever`, `TimelineView`, timers, display links or
   implicit `.animation(x)` without `value:`. Hover and press states are instant; nothing animates while typing; every
   animation respects Reduce Motion.
-- **Budgets**: panel show p95 ≤ 14 ms, first results p95 ≤ 33 ms, commit p95 ≤ 12 ms, idle CPU ≤ 0.1 %, hover idle CPU
-  ≤ 0.05 %, hover footprint growth ≤ 1 MB, plus the `spot-bench --incremental` scenarios.
+- **Budgets**: panel show p95 ≤ 14 ms, first results p95 ≤ 33 ms, commit p95 ≤ 12 ms, idle CPU ≤ 0.1 %, CPU added by a hover
+  ≤ 0.05 %, footprint added by a hover ≤ 1 MB, plus the `hunch-bench --incremental` scenarios.
 
 ## Licensing rules
 
@@ -63,7 +63,7 @@ The app links ggml-org's official llama.cpp xcframework, pinned by release tag a
 
 1. Pick the new release tag and download its `llama-<tag>-xcframework.zip`.
 2. `swift package compute-checksum <zip>` and update the URL and checksum in `Package.swift`.
-3. Run `./Scripts/test.sh`, `spot-bench --embed-dump` (the embeddings must match the old build), `make-app.sh` and
+3. Run `./Scripts/test.sh`, `hunch-bench --embed-dump` (the embeddings must match the old build), `make-app.sh` and
    `verify-app.sh`.
 4. Note the bump in `CHANGELOG.md`.
 

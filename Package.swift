@@ -16,8 +16,8 @@ let testingPluginFlags: [SwiftSetting] =
 
 // llama.cpp + ggml + mtmd come from ggml-org's official xcframework, pinned to release b11669 (the build Homebrew's
 // llama.cpp 0.7.0 ships, so behaviour and benchmarks match). Bump tag and checksum together; see CONTRIBUTING.md.
-// `BS_LLAMA=homebrew swift build` links the Homebrew kegs instead (unsupported, local perf work only; macOS 27).
-let useHomebrewLlama = Context.environment["BS_LLAMA"] == "homebrew"
+// `HUNCH_LLAMA=homebrew swift build` links the Homebrew kegs instead (unsupported, local perf work only; macOS 27).
+let useHomebrewLlama = Context.environment["HUNCH_LLAMA"] == "homebrew"
 
 let llamaTargets: [Target] =
     useHomebrewLlama
@@ -54,38 +54,38 @@ let llamaLinker: [LinkerSetting] =
     : []
 
 // The engine's hot loops (name scan, top-k, fusion) run 10–20× slower at -Onone, which turns a sub-millisecond
-// name pass into 5–9 ms and makes the debug build's --measure (first_results_ms ≤ 16) meaningless. SpotCore is
+// name pass into 5–9 ms and makes the debug build's --measure (first_results_ms ≤ 16) meaningless. HunchCore is
 // always optimized; the app target stays at -Onone for debugging.
-let spotCoreOptimized: [SwiftSetting] = [.unsafeFlags(["-O"], .when(configuration: .debug))]
+let hunchCoreOptimized: [SwiftSetting] = [.unsafeFlags(["-O"], .when(configuration: .debug))]
 
-// The app's test target (PanelLayoutTests and friends) exists once Tests/BetterSpotlightTests has sources.
-let appTestsPath = Context.packageDirectory + "/Tests/BetterSpotlightTests"
+// The app's test target (PanelLayoutTests and friends) exists once Tests/HunchTests has sources.
+let appTestsPath = Context.packageDirectory + "/Tests/HunchTests"
 let appTestTargets: [Target] =
     FileManager.default.fileExists(atPath: appTestsPath)
     ? [
         .testTarget(
-            name: "BetterSpotlightTests",
-            dependencies: ["BetterSpotlight"],
+            name: "HunchTests",
+            dependencies: ["Hunch"],
             swiftSettings: ggmlInclude + testingPluginFlags
         )
     ]
     : []
 
 let package = Package(
-    name: "BetterSpotlight",
+    name: "Hunch",
     // The xcframework's macOS slice has minos 13.3 and the UI needs macOS 26 (Liquid Glass). The Homebrew bottles
     // are built for macOS 27, so the fallback keeps 27.
     platforms: [useHomebrewLlama ? .macOS("27.0") : .macOS(.v26)],
     products: [
-        .library(name: "SpotCore", targets: ["SpotCore"]),
-        .executable(name: "BetterSpotlight", targets: ["BetterSpotlight"]),
-        .executable(name: "spot-bench", targets: ["spot-bench"]),
+        .library(name: "HunchCore", targets: ["HunchCore"]),
+        .executable(name: "Hunch", targets: ["Hunch"]),
+        .executable(name: "hunch-bench", targets: ["hunch-bench"]),
     ],
     targets: llamaTargets + [
         .target(
-            name: "SpotCore",
+            name: "HunchCore",
             dependencies: [llamaDependency],
-            swiftSettings: ggmlInclude + spotCoreOptimized,
+            swiftSettings: ggmlInclude + hunchCoreOptimized,
             linkerSettings: [
                 .linkedLibrary("sqlite3"),
                 .linkedLibrary("compression"),
@@ -100,8 +100,8 @@ let package = Package(
             ] + llamaLinker
         ),
         .executableTarget(
-            name: "BetterSpotlight",
-            dependencies: ["SpotCore"],
+            name: "Hunch",
+            dependencies: ["HunchCore"],
             swiftSettings: ggmlInclude,
             linkerSettings: [
                 .linkedFramework("AppKit"),
@@ -109,13 +109,13 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "spot-bench",
-            dependencies: ["SpotCore"],
+            name: "hunch-bench",
+            dependencies: ["HunchCore"],
             swiftSettings: ggmlInclude
         ),
         .testTarget(
-            name: "SpotCoreTests",
-            dependencies: ["SpotCore"],
+            name: "HunchCoreTests",
+            dependencies: ["HunchCore"],
             swiftSettings: ggmlInclude + testingPluginFlags
         ),
     ] + appTestTargets,

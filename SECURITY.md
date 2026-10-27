@@ -7,7 +7,7 @@ Only the latest release receives fixes. Please update before reporting.
 ## Reporting a vulnerability
 
 Report privately through GitHub: open the repository's **Security** tab and choose **Report a vulnerability**
-(https://github.com/Yabuku-xD/BetterSpotlight/security/advisories/new). Do not open a public issue.
+(https://github.com/Yabuku-xD/Hunch/security/advisories/new). Do not open a public issue.
 
 Include the app version, macOS version, what an attacker could do and the steps to reproduce.
 
@@ -18,7 +18,7 @@ notes unless you ask us not to.
 
 In scope:
 
-- The index files in `~/Library/Application Support/BetterSpotlight` (what is stored and who can read it).
+- The index files in `~/Library/Application Support/Hunch` (what is stored and who can read it).
 - Content extraction of untrusted files (documents, archives, images, audio and video).
 - Model download integrity: the pinned Hugging Face revision, the size and SHA-256 checks and the import path.
 - File actions from the panel (open, open with, reveal in Finder, Quick Look, copy path or text).

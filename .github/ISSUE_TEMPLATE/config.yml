@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Questions and ideas
-    url: https://github.com/Yabuku-xD/BetterSpotlight/discussions
+    url: https://github.com/Yabuku-xD/Hunch/discussions
     about: Ask how something works or float an idea before filing an issue.
   - name: Security issue
-    url: https://github.com/Yabuku-xD/BetterSpotlight/security/advisories/new
+    url: https://github.com/Yabuku-xD/Hunch/security/advisories/new
     about: Report vulnerabilities privately, never in a public issue.

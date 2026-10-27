@@ -22,6 +22,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Force Quit: hold ⌥ in the actions (⌘K) and Quit becomes Force Quit, or press ⌃⌥⇧Q. When an app has not quit 3 s
+  after Quit, the status line says so and its actions offer Force Quit.
+- Copy File: hold ⌥ in the actions and Copy Path becomes Copy File, or press ⌥⇧⌘C. The file itself goes on the
+  pasteboard, ready to paste into Finder, Mail or a chat.
+- Drag a result out of the panel to drop the file into another app.
+- `modified:today|yesterday|week|month|year` filter, and `kind:` accepts a file type (`kind:pdf` = `ext:pdf`).
 - `Scripts/quant-eval.py` and `hunch-bench --embed-eval`: measure a GGUF quantization against BF16. Q8_0 stays the
   default; no smaller EmbeddingGemma 2 quant keeps the top-10 results (see README FAQ).
 

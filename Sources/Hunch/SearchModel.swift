@@ -612,6 +612,13 @@ final class SearchModel {
         chips = state
     }
 
+    /// Swaps chip kinds in place (⌥ alternates); the focus stays on the same position.
+    func replaceChips(_ actions: [PanelAction]) {
+        guard var state = chips, state.actions.count == actions.count, state.actions != actions else { return }
+        state.actions = actions
+        chips = state
+    }
+
     func setSlipHint(_ text: String?) { slipHint = text }
 
     func setCommandHeld(_ held: Bool) {

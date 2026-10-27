@@ -1,13 +1,14 @@
 import Foundation
 import UniformTypeIdentifiers
 
-/// K17: scope operators inside the query. Only `name:`, `in:`, `ext:` and `kind:` with a non-empty value are
-/// operators; anything else (`a:b.txt`, `kind:foo`) stays plain text, so ordinary queries never change meaning.
+/// K17: scope operators inside the query. Only `name:`, `in:`, `ext:`, `kind:` and `modified:` with a valid value
+/// are operators; anything else (`a:b.txt`, `kind:foo`) stays plain text, so ordinary queries never change meaning.
 ///
 ///     name:invoice           names only (no full-text, no semantic leg)
 ///     in:Downloads           at or below ~/Downloads (absolute and ~ paths too; quotes for spaces: in:"My Stuff")
 ///     ext:pdf                by extension (repeatable: ext:pdf ext:md)
-///     kind:app|folder|file|image|video|audio|doc
+///     kind:app|folder|file|image|video|audio|doc, or a file type: kind:pdf is ext:pdf
+///     modified:today|yesterday|week|month|year   changed since then (week = the last 7 days)
 public struct ParsedQuery: Sendable, Equatable {
     public enum Kind: String, Sendable, CaseIterable { case app, folder, file, image, video, audio, doc }
 
@@ -19,23 +20,29 @@ public struct ParsedQuery: Sendable, Equatable {
     /// Lowercased, without the dot.
     public var extensions: Set<String> = []
     public var kinds: Set<Kind> = []
+    /// From `modified:`: only items changed at or after this moment.
+    public var modifiedSince: Date?
 
     public init(
         text: String, nameOnly: Bool = false, folders: [String] = [], extensions: Set<String> = [],
-        kinds: Set<Kind> = []
+        kinds: Set<Kind> = [], modifiedSince: Date? = nil
     ) {
         self.text = text
         self.nameOnly = nameOnly
         self.folders = folders
         self.extensions = extensions
         self.kinds = kinds
+        self.modifiedSince = modifiedSince
     }
 
     /// True when a filter narrows the results (not counting `name:`).
-    public var hasFilters: Bool { !folders.isEmpty || !extensions.isEmpty || !kinds.isEmpty }
+    public var hasFilters: Bool {
+        !folders.isEmpty || !extensions.isEmpty || !kinds.isEmpty || modifiedSince != nil
+    }
 
     /// Whether `item` passes every filter.
     public func matches(_ item: Item) -> Bool {
+        if let modifiedSince, item.modified < modifiedSince { return false }
         if !folders.isEmpty, !folders.contains(where: { Self.isAtOrBelow(item.path, $0) }) { return false }
         let ext = (item.path as NSString).pathExtension.lowercased()
         if !extensions.isEmpty, !extensions.contains(ext) { return false }
@@ -68,10 +75,12 @@ public struct ParsedQuery: Sendable, Equatable {
 }
 
 public enum QueryParser {
-    /// Parses `query`. `home` resolves relative `in:` folders (`in:Downloads` → `<home>/Downloads`).
+    /// Parses `query`. `home` resolves relative `in:` folders (`in:Downloads` → `<home>/Downloads`); `now` and
+    /// `calendar` resolve `modified:`.
     public static func parse(
         _ query: String,
-        home: String = FileManager.default.homeDirectoryForCurrentUser.path
+        home: String = FileManager.default.homeDirectoryForCurrentUser.path,
+        now: Date = .now, calendar: Calendar = .current
     ) -> ParsedQuery {
         var out = ParsedQuery(text: "")
         var rest: [String] = []
@@ -93,8 +102,17 @@ public enum QueryParser {
                     out.extensions.insert(e.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")))
                 }
             case "kind":
-                if let k = ParsedQuery.Kind(rawValue: value.lowercased()) {
+                let v = value.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+                if let k = ParsedQuery.Kind(rawValue: v) {
                     out.kinds.insert(k)
+                } else if !v.isEmpty, let type = UTType(filenameExtension: v), !type.isDynamic {
+                    out.extensions.insert(v)  // kind:pdf, kind:mp4: a file type the system knows
+                } else {
+                    rest.append(token)
+                }
+            case "modified":
+                if let since = since(value.lowercased(), now: now, calendar: calendar) {
+                    out.modifiedSince = max(out.modifiedSince ?? since, since)
                 } else {
                     rest.append(token)
                 }
@@ -104,6 +122,19 @@ public enum QueryParser {
         }
         out.text = rest.joined(separator: " ")
         return out
+    }
+
+    /// The start of a `modified:` window: today and yesterday from midnight, week/month/year back from `now`.
+    static func since(_ value: String, now: Date, calendar: Calendar) -> Date? {
+        let today = calendar.startOfDay(for: now)
+        switch value {
+        case "today": return today
+        case "yesterday": return calendar.date(byAdding: .day, value: -1, to: today)
+        case "week": return calendar.date(byAdding: .day, value: -7, to: now)
+        case "month": return calendar.date(byAdding: .month, value: -1, to: now)
+        case "year": return calendar.date(byAdding: .year, value: -1, to: now)
+        default: return nil
+        }
     }
 
     /// Whitespace-separated tokens; `"…"` after an operator's colon keeps spaces (`in:"My Stuff"`).

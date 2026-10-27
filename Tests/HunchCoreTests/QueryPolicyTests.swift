@@ -21,6 +21,9 @@ import Testing
         ("ext:PDF ext:.md notes", ParsedQuery(text: "notes", extensions: ["pdf", "md"])),
         ("KIND:app safari", ParsedQuery(text: "safari", kinds: [.app])),
         ("in: x", ParsedQuery(text: "in: x")),
+        ("kind:pdf invoice", ParsedQuery(text: "invoice", extensions: ["pdf"])),
+        ("kind:.MP4", ParsedQuery(text: "", extensions: ["mp4"])),
+        ("modified:soon x", ParsedQuery(text: "modified:soon x")),
     ])
     func table(_ input: String, _ expected: ParsedQuery) {
         #expect(QueryParser.parse(input, home: Self.home) == expected)
@@ -38,6 +41,30 @@ import Testing
         #expect(QueryParser.parse("kind:doc", home: Self.home).matches(pdf))
         #expect(QueryParser.parse("kind:app", home: Self.home).matches(app))
         #expect(!QueryParser.parse("ext:pdf", home: Self.home).matches(png))
+        #expect(QueryParser.parse("kind:pdf", home: Self.home).matches(pdf))
+        #expect(!QueryParser.parse("kind:pdf", home: Self.home).matches(png))
+    }
+
+    @Test func modifiedWindows() throws {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = try #require(TimeZone(identifier: "UTC"))
+        let now = try #require(cal.date(from: DateComponents(year: 2026, month: 3, day: 15, hour: 14)))
+        func since(_ q: String) -> Date? {
+            QueryParser.parse(q, home: Self.home, now: now, calendar: cal).modifiedSince
+        }
+        #expect(since("modified:today") == cal.date(from: DateComponents(year: 2026, month: 3, day: 15)))
+        #expect(since("modified:yesterday") == cal.date(from: DateComponents(year: 2026, month: 3, day: 14)))
+        #expect(since("modified:week") == cal.date(from: DateComponents(year: 2026, month: 3, day: 8, hour: 14)))
+        #expect(since("MODIFIED:Month") == cal.date(from: DateComponents(year: 2026, month: 2, day: 15, hour: 14)))
+        #expect(since("modified:year x") == cal.date(from: DateComponents(year: 2025, month: 3, day: 15, hour: 14)))
+        // Two windows: the narrower one wins.
+        #expect(since("modified:year modified:today") == cal.date(from: DateComponents(year: 2026, month: 3, day: 15)))
+
+        let week = QueryParser.parse("modified:week", home: Self.home, now: now, calendar: cal)
+        let item = { (d: Int) in
+            Item(id: 1, path: "/a", name: "a", kind: .file, modified: now.addingTimeInterval(-Double(d) * 86_400))
+        }
+        #expect(week.hasFilters && week.matches(item(2)) && !week.matches(item(9)))
     }
 
     @Test func engineHonoursNameOnlyAndScope() async throws {

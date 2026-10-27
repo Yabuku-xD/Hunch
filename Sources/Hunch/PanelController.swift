@@ -86,6 +86,11 @@ final class PanelController {
     private var monitors: [Any] = []
     private var restoreTask: Task<Void, Never>?
     private var statusTask: Task<Void, Never>?
+    /// A drag out of the list: the row under the pointer at mouse-down and where it went down.
+    private var dragStart: (result: SearchResult, point: NSPoint)?
+    private let dragSource = ResultDragSource()
+    /// Apps a Quit was sent to that had not quit 3 s later; their chips offer Force Quit instead.
+    private var stalledQuits: Set<pid_t> = []
     /// Opens Settings (⌘, and clicks on the band status).
     var onSettings: ((SettingsPane?) -> Void)?
     /// The model-missing status: onboarding step 4, or Settings › Index once onboarding is complete (U11).
@@ -128,8 +133,15 @@ final class PanelController {
                 MainActor.assumeIsolated {
                     let mods = event.modifierFlags.intersection([.command, .option, .control, .shift])
                     self?.model.setCommandHeld(mods == .command && event.window === self?.panel)
+                    self?.applyAlternates(option: mods.contains(.option))
                 }
                 return event
+            } as Any)
+        monitors.append(
+            NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]) {
+                [weak self] event in
+                let handled = MainActor.assumeIsolated { self?.handleDrag(event) ?? false }
+                return handled ? nil : event
             } as Any)
 
         if let admin {
@@ -473,7 +485,72 @@ final class PanelController {
     private func quitApp(_ result: SearchResult) {
         guard let app = RunningApps.shared.application(at: result.item.path) else { return }
         app.terminate()  // never forced; unsaved documents get their normal prompt
-        model.status.flash("Quitting \(DisplayText.name(result.item))…")
+        let name = DisplayText.name(result.item)
+        model.status.flash("Quitting \(name)…")
+        // One check, no polling: an app still running 3 s later is waiting on a dialog or hung. Offer Force Quit.
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard let self, !app.isTerminated else { return }
+            self.stalledQuits.insert(app.processIdentifier)
+            self.model.status.flash("\(name) has not quit · ⌃⌥⇧Q to Force Quit")
+            if let chips = self.model.chips, !chips.isChooser {
+                self.model.replaceChips(chips.actions.map { $0 == .quit ? .forceQuit : $0 })
+            }
+        }
+    }
+
+    private func forceQuitApp(_ result: SearchResult) {
+        guard let app = RunningApps.shared.application(at: result.item.path) else { return }
+        let name = DisplayText.name(result.item)
+        stalledQuits.remove(app.processIdentifier)
+        model.status.flash(app.forceTerminate() ? "Force quit \(name)" : "Could not force quit \(name)")
+    }
+
+    private func copyFile(_ result: SearchResult) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.writeObjects([URL(fileURLWithPath: result.item.path) as NSURL])
+        model.status.flash("File copied")
+    }
+
+    private func quitStalled(_ result: SearchResult) -> Bool {
+        guard !stalledQuits.isEmpty, let app = RunningApps.shared.application(at: result.item.path) else {
+            return false
+        }
+        return stalledQuits.contains(app.processIdentifier)
+    }
+
+    /// ⌥ pressed or released: chips with an alternate show it (Quit → Force Quit, Copy Path → Copy File).
+    private func applyAlternates(option: Bool) {
+        guard let state = model.chips, !state.isChooser else { return }
+        model.replaceChips(PanelAction.swapped(state.actions, option: option))
+    }
+
+    /// Drags a result row out of the panel as its file (Finder, Mail, a chat). Only a press that starts on a result
+    /// row arms it, so selecting text in the field never turns into a file drag.
+    private func handleDrag(_ event: NSEvent) -> Bool {
+        guard event.window === panel else { return false }
+        switch event.type {
+        case .leftMouseDown:
+            dragStart = model.hoveredID.flatMap { id in model.visibleRows.first { $0.id == id }?.result }
+                .map { ($0, event.locationInWindow) }
+            return false
+        case .leftMouseDragged:
+            guard let start = dragStart, let view = panel.contentView else { return false }
+            let p = event.locationInWindow
+            guard hypot(p.x - start.point.x, p.y - start.point.y) >= 4 else { return false }
+            dragStart = nil
+            let url = URL(fileURLWithPath: start.result.item.path)
+            let icon = NSWorkspace.shared.icon(forFile: url.path)
+            icon.size = NSSize(width: 32, height: 32)
+            let item = NSDraggingItem(pasteboardWriter: url as NSURL)
+            let local = view.convert(start.point, from: nil)
+            item.setDraggingFrame(NSRect(x: local.x - 16, y: local.y - 16, width: 32, height: 32), contents: icon)
+            view.beginDraggingSession(with: [item], event: event, source: dragSource)
+            return true
+        default:
+            dragStart = nil
+            return false
+        }
     }
 
     private var changesTask: Task<Void, Never>?
@@ -531,10 +608,10 @@ final class PanelController {
     func toggleChips() {
         if model.chips != nil { model.closeChips(); return }
         guard let result = model.selectedResult else { return }
-        model.openChips(
-            PanelAction.chips(
-                for: result, isPinned: admin?.isPinned(result.item) ?? false,
-                isRunning: RunningApps.shared.isRunning(result.item.path)))
+        let chips = PanelAction.chips(
+            for: result, isPinned: admin?.isPinned(result.item) ?? false,
+            isRunning: RunningApps.shared.isRunning(result.item.path), quitStalled: quitStalled(result))
+        model.openChips(PanelAction.swapped(chips, option: NSEvent.modifierFlags.contains(.option)))
     }
 
     func runChip(_ action: PanelAction) {
@@ -551,7 +628,9 @@ final class PanelController {
         case .copyPath: copyPath(result)
         case .pin, .unpin: togglePin(result)
         case .quit: quitApp(result)
+        case .forceQuit: forceQuitApp(result)
         case .copyText: copyText(result)
+        case .copyFile: copyFile(result)
         case .exclude: exclude(result)
         case .openIn(let app): open(result, with: app)
         }
@@ -626,6 +705,11 @@ final class PanelController {
             }
         }
         if mods == [.command, .option], key == "c", let r = model.selectedResult { copyText(r); return true }
+        if mods == [.command, .option, .shift], key == "c", let r = model.selectedResult { copyFile(r); return true }
+        if mods == [.control, .option, .shift], key == "q", let r = model.selectedResult, r.item.kind == .app {
+            forceQuitApp(r)
+            return true
+        }
         if mods == [.control, .shift], key == "q", let r = model.selectedResult, r.item.kind == .app {
             quitApp(r)
             return true
@@ -645,7 +729,7 @@ final class PanelController {
                 model.openChips(
                     PanelAction.chips(
                         for: r, isPinned: admin?.isPinned(r.item) ?? false,
-                        isRunning: RunningApps.shared.isRunning(r.item.path)))
+                        isRunning: RunningApps.shared.isRunning(r.item.path), quitStalled: quitStalled(r)))
             } else {
                 model.closeChips()
                 focusField()  // P12
@@ -689,6 +773,15 @@ final class PanelController {
         case .pass: return false
         }
         return true
+    }
+}
+
+/// Copy for every destination: Finder copies the file, Mail and chats attach it.
+final class ResultDragSource: NSObject, NSDraggingSource {
+    func draggingSession(
+        _ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext
+    ) -> NSDragOperation {
+        context == .outsideApplication ? [.copy, .link, .generic] : []
     }
 }
 

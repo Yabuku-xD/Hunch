@@ -15,8 +15,11 @@
 - **Contents**: text inside documents (PDF, Office, RTF, plain text and code), text inside images (OCR), text and frames
   inside videos, and speech inside audio and video.
 - **Meaning**: semantic matches for text and images through EmbeddingGemma 2 and its image projector, on-device.
-- **Filters**: `in:Folder`, `name:`, `ext:` and `kind:` operators.
+- **Filters**: `in:Folder`, `name:`, `ext:`, `kind:` (`kind:image`, `kind:pdf`) and `modified:` (`today`, `yesterday`,
+  `week`, `month`, `year`) operators, combined with any search text.
 - **Actions**: open, open with, reveal in Finder, Quick Look, copy path, pin to Favorites (⌘K shows them all).
+  Hold ⌥ for the alternates: Copy File instead of Copy Path, Force Quit instead of Quit. Drag a result out of the
+  panel to drop the file into Finder, Mail or a chat.
 - **Liquid Glass panel**: one slab of system glass that follows Light/Dark, Increase Contrast, Reduce Transparency and
   Reduce Motion.
 

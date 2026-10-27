@@ -226,6 +226,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guide: OnboardingWindowController
     ) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        // A stable name, so macOS and menu bar managers remember where the user put the item across launches.
+        item.autosaveName = AppInfo.name
         let attention = hotKeyFailed || modelFailed
         item.button?.image = Self.statusMark(attention: attention)
         let menu = NSMenu()

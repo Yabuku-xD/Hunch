@@ -31,13 +31,18 @@ public actor ProcessEmbedder: Embedder {
         }
     }
 
-    /// `hunch-embedder` beside the running executable, or nil (tests, `swift run Hunch` without the helper built).
+    /// The helper inside the app (`Contents/Helpers/Hunch Helper.app`, a background-only bundle so it reads as part of
+    /// Hunch), else `hunch-embedder` beside the executable (`swift build` products), else nil (tests without the helper).
     /// `HUNCH_EMBEDDER_IN_PROCESS=1` forces nil.
     public static var helperURL: URL? {
         if ProcessInfo.processInfo.environment["HUNCH_EMBEDDER_IN_PROCESS"] == "1" { return nil }
         guard let exe = Bundle.main.executableURL else { return nil }
-        let url = exe.deletingLastPathComponent().appendingPathComponent("hunch-embedder")
-        return FileManager.default.isExecutableFile(atPath: url.path) ? url : nil
+        let candidates = [
+            Bundle.main.bundleURL.appendingPathComponent(
+                "Contents/Helpers/Hunch Helper.app/Contents/MacOS/Hunch Helper"),
+            exe.deletingLastPathComponent().appendingPathComponent("hunch-embedder"),
+        ]
+        return candidates.first { FileManager.default.isExecutableFile(atPath: $0.path) }
     }
 
     /// Starts the helper and waits until the model is loaded (it fails with the helper's `EmbedderError`).

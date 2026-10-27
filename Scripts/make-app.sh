@@ -32,7 +32,12 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources"
 EXE="$APP/Contents/MacOS/$NAME"
 FW="$APP/Contents/Frameworks"
-HELPER="$APP/Contents/MacOS/hunch-embedder"
+# The model helper is a nested, background-only bundle (like Chrome's helpers): Activity Monitor shows it as
+# "Hunch Helper" with Hunch's icon, it never gets a Dock tile or menu bar, and Launch Services treats it as part of Hunch.
+HELPER_NAME="$NAME Helper"
+HELPER_APP="$APP/Contents/Helpers/$HELPER_NAME.app"
+HELPER="$HELPER_APP/Contents/MacOS/$HELPER_NAME"
+mkdir -p "$HELPER_APP/Contents/MacOS" "$HELPER_APP/Contents/Resources"
 cp "$BIN_DIR/$NAME" "$EXE"
 cp "$BIN_DIR/hunch-embedder" "$HELPER"
 
@@ -45,13 +50,15 @@ rm -rf "$FW/llama.framework/Headers" "$FW/llama.framework/Modules" \
   "$FW/llama.framework/Versions/A/Headers" "$FW/llama.framework/Versions/A/Modules"
 
 # The executables find the framework through their bundle rpath only.
-for bin in "$EXE" "$HELPER"; do
-  chmod u+w "$bin"
+set_rpath() {
+  chmod u+w "$1"
   while read -r rp; do
-    install_name_tool -delete_rpath "$rp" "$bin" 2>/dev/null
-  done < <(otool -l "$bin" | awk '/cmd LC_RPATH/{getline; getline; print $2}')
-  install_name_tool -add_rpath @executable_path/../Frameworks "$bin" 2>/dev/null
-done
+    install_name_tool -delete_rpath "$rp" "$1" 2>/dev/null
+  done < <(otool -l "$1" | awk '/cmd LC_RPATH/{getline; getline; print $2}')
+  install_name_tool -add_rpath "$2" "$1" 2>/dev/null
+}
+set_rpath "$EXE" @executable_path/../Frameworks
+set_rpath "$HELPER" @executable_path/../../../../Frameworks
 
 say "Info.plist + icon"
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -81,6 +88,27 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
+cat > "$HELPER_APP/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key><string>$BUNDLE_ID.Helper</string>
+    <key>CFBundleName</key><string>$HELPER_NAME</string>
+    <key>CFBundleDisplayName</key><string>$HELPER_NAME</string>
+    <key>CFBundleExecutable</key><string>$HELPER_NAME</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>$VERSION</string>
+    <key>CFBundleVersion</key><string>$BUILD_NUMBER</string>
+    <key>LSUIElement</key><true/>
+    <key>LSBackgroundOnly</key><true/>
+    <key>LSMinimumSystemVersion</key><string>$MIN_MACOS</string>
+    <key>NSHumanReadableCopyright</key><string>© 2026 Yabuku-xD. MIT License.</string>
+</dict>
+</plist>
+PLIST
+plutil -lint "$HELPER_APP/Contents/Info.plist" >/dev/null
 cp THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/THIRD_PARTY_NOTICES.md"
 cp LICENSE "$APP/Contents/Resources/LICENSE"
 
@@ -93,9 +121,11 @@ if swift Scripts/make-icon.swift "$ICONSET/icon_512x512@2x.png"; then
     [[ $d -eq 1024 ]] || sips -z $d $d "$ICONSET/icon_512x512@2x.png" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
   done
   iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+  cp "$APP/Contents/Resources/AppIcon.icns" "$HELPER_APP/Contents/Resources/AppIcon.icns"
 else
   echo "warning: icon generation failed; shipping without an icon" >&2
   /usr/libexec/PlistBuddy -c 'Delete :CFBundleIconFile' "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c 'Delete :CFBundleIconFile' "$HELPER_APP/Contents/Info.plist"
 fi
 
 say "verifying no Homebrew references"
@@ -112,7 +142,7 @@ say "signing"
 # no Team ID. Scripts/release.sh re-signs with the hardened runtime plus the one entitlement that allows it.
 SIGN_OPTS=(--force --timestamp=none -s -)
 codesign "${SIGN_OPTS[@]}" "$FW/llama.framework"
-codesign "${SIGN_OPTS[@]}" "$HELPER"
+codesign "${SIGN_OPTS[@]}" "$HELPER_APP"
 {
   echo "llama.cpp b11669 (ggml-org xcframework, arm64)"
   ( cd "$APP/Contents" && shasum -a 256 "Frameworks/llama.framework/Versions/A/llama" )

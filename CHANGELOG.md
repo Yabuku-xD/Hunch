@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   indexed. Memory while searching by meaning: 289 MB in total, was 355 MB.
 - Row icons and content previews share one tile size (32 pt, 28 pt on small screens); group glyphs sit centred on
   their first row.
+- The model helper ships as `Contents/Helpers/Hunch Helper.app`, a background-only bundle: Activity Monitor shows
+  it as "Hunch Helper" with Hunch's icon, and it never appears as an app of its own.
+- App icon: continuous-corner (superellipse) tile, a deeper glass orb with a specular highlight and lit rim, and a
+  warm caustic below it.
+- The menu bar item has an autosave name, so its position is kept across launches.
 
 ### Added
 

@@ -266,7 +266,8 @@ private final class Counter: Sendable { let n = Mutex(0) }
 
     @Test func lazyLoadSharedUnloadAfterIdleThenReload() async throws {
         let loads = Counter()
-        let e = Self.managed(timeout: .milliseconds(150), loads: loads)
+        // Long enough that a slow CI runner cannot reach the idle unload before the isLoaded check below.
+        let e = Self.managed(timeout: .milliseconds(800), loads: loads)
         #expect(await !e.isLoaded)  // nothing at init
         async let a = e.embedQueries(["x"])
         async let b = e.embedDocuments([("none", "y")])

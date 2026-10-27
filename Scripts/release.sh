@@ -34,7 +34,7 @@ fi
 say "codesign (ad-hoc, hardened runtime)"
 codesign --force --sign - --options runtime --timestamp=none "$APP/Contents/Frameworks/llama.framework"
 codesign --force --sign - --options runtime --timestamp=none --entitlements Scripts/release.entitlements \
-  "$APP/Contents/MacOS/hunch-embedder"
+  "$APP/Contents/Helpers/$NAME Helper.app"
 codesign --force --sign - --options runtime --timestamp=none --entitlements Scripts/release.entitlements "$APP"
 codesign --verify --deep --strict "$APP"
 Scripts/verify-app.sh "$APP"

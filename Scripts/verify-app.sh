@@ -10,18 +10,22 @@ LOG=$(mktemp -d "${TMPDIR:-/tmp}/bs-verify.XXXXXX")
 fail=0
 
 # Every Mach-O in the bundle (the executable and the framework binaries).
-machos=$(find "$APP/Contents/MacOS" "$APP/Contents/Frameworks" -type f -perm -u+x 2>/dev/null; \
+machos=$(find "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Frameworks" -type f -perm -u+x 2>/dev/null; \
   find "$APP/Contents/Frameworks" -type f -path '*/Versions/*' ! -path '*/Resources/*' 2>/dev/null)
-refs=$(for f in $(echo "$machos" | sort -u); do otool -L "$f" 2>/dev/null; otool -l "$f" 2>/dev/null | grep -A2 LC_RPATH; done | grep -c /opt/homebrew)
+refs=$(echo "$machos" | sort -u | while IFS= read -r f; do otool -L "$f" 2>/dev/null; otool -l "$f" 2>/dev/null | grep -A2 LC_RPATH; done | grep -c /opt/homebrew)
 echo "HOMEBREW_LINKS=$refs (otool load commands + rpaths in the bundle)"; (( refs == 0 )) || fail=1
 
 if codesign --verify --deep --strict "$APP"; then echo "CODESIGN_OK"; else echo "CODESIGN_FAILED"; fail=1; fi
 echo "LSUIElement=$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$APP/Contents/Info.plist" 2>/dev/null || echo missing)"
+# The model helper is a background-only bundle inside the app, so it never shows as an app of its own.
+HELPER_PLIST="$APP/Contents/Helpers/Hunch Helper.app/Contents/Info.plist"
+if [[ $(/usr/libexec/PlistBuddy -c 'Print :LSBackgroundOnly' "$HELPER_PLIST" 2>/dev/null) == true \
+  && -x "$APP/Contents/Helpers/Hunch Helper.app/Contents/MacOS/Hunch Helper" ]]; then echo "HELPER_OK"; else echo "HELPER_MISSING"; fail=1; fi
 
 # S2: license notices ship in the bundle.
 if [[ -s $APP/Contents/Resources/THIRD_PARTY_NOTICES.md && -s $APP/Contents/Resources/LICENSE ]]; then echo "NOTICES_OK"; else echo "NOTICES_MISSING"; fail=1; fi
 # No strings of the dev-only BS_ overrides in the release binary (they are DEBUG-only).
-bs=$(strings "$APP/Contents/MacOS/"* 2>/dev/null | grep -cE '^HUNCH_(HOVER_ROW|PRESS|INDEX_STATE|MODEL_STATE|HOTKEY_STATE|APPEARANCE|SCREEN|FIRST_RUN)' || true)
+bs=$(strings "$APP/Contents/MacOS/"* "$APP/Contents/Helpers/"*.app/Contents/MacOS/* 2>/dev/null | grep -cE '^HUNCH_(HOVER_ROW|PRESS|INDEX_STATE|MODEL_STATE|HOTKEY_STATE|APPEARANCE|SCREEN|FIRST_RUN)' || true)
 echo "HUNCH_OVERRIDE_STRINGS=$bs"
 # S1: every bundled native library matches its recorded sha256.
 STAMP=$APP/Contents/Resources/native-libs.txt

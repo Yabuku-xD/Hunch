@@ -4,6 +4,9 @@ import HunchCore
 // The embedding helper the app launches (`ProcessEmbedder`): `hunch-embedder <model.gguf> <dimension>`.
 // Loads the model, answers `EmbedderWire` requests on stdin/stdout one at a time, exits at end of input.
 
+// As in the app: no Metal residency sets (a keep-alive loop that never stops once a model has loaded).
+setenv("GGML_METAL_NO_RESIDENCY", "1", 0)
+
 let input = FileHandle.standardInput
 let output = FileHandle.standardOutput
 let args = CommandLine.arguments

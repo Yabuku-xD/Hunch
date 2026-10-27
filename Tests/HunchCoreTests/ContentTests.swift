@@ -77,7 +77,7 @@ private func find(_ fts: FullTextIndex, _ q: String, item: UInt32) -> FullTextHi
     }
 }
 
-private let isCI = ProcessInfo.processInfo.environment["CI"] != nil
+let isCI = ProcessInfo.processInfo.environment["CI"] != nil
 
 // MARK: Extraction through the pipeline
 

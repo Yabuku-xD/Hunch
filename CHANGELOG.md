@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- The model runs in a helper process (`hunch-embedder`) that exits after 5 idle minutes. The app stays at about
+  68 MB; before, unloading the model left 50–110 MB behind in the app.
+- Search queries use their own small llama.cpp context; the wide indexing context is created only when files are
+  indexed. Memory while searching by meaning: 289 MB in total, was 355 MB.
+- Row icons and content previews share one tile size (32 pt, 28 pt on small screens); group glyphs sit centred on
+  their first row.
+
+### Added
+
+- `Scripts/quant-eval.py` and `hunch-bench --embed-eval`: measure a GGUF quantization against BF16. Q8_0 stays the
+  default; no smaller EmbeddingGemma 2 quant keeps the top-10 results (see README FAQ).
+
 ## [1.1.0] - 2026-10-27
 
 ### Changed

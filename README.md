@@ -94,8 +94,10 @@ vectors.
 |---|---|
 | Idle CPU, panel hidden | 0.05 % |
 | CPU and memory added by hovering rows | 0 % and 0.0 MB |
-| Idle memory (RSS), model not loaded | 89 MB |
-| Memory with the model loaded | 634 MB |
+| Memory, idle (model not loaded) | 68 MB |
+| Memory, searching by meaning (app + model helper) | 69 + 220 MB |
+| Memory, indexing (app + model helper) | 69 + 370 MB |
+| Memory after the model unloads | 69 MB (the helper exits) |
 | Crawl throughput | 39,700 items/s |
 | Document chunks embedded | 779 /s |
 
@@ -111,12 +113,13 @@ issue.
 | Alfred | via Spotlight | no | no | no | yes | no | free / paid | n/p ("tiny") [²](https://www.alfredapp.com/help/why-choose-alfred) | under 3 MB (v3) [³](https://www.alfredapp.com/changelog/v3) | none |
 | DigUp | yes | yes | no | yes | yes | yes (MIT) | free | n/p (model process quits when done) [⁴](https://github.com/ARahim3/DigUp) | about 20 MB [⁴](https://github.com/ARahim3/DigUp) | 865 MB |
 | Tinycast | no | no | no | no | yes | yes (AGPL-3.0) | free | under 100 MB [⁵](https://github.com/abue-ammar/tinycast) | n/p | none |
-| Hunch | yes | yes | yes | yes | yes | yes (MIT) | free | 89 MB (634 MB with model loaded) | 18 MB (5.9 MB zip) | 865 MB |
+| Hunch | yes | yes | yes | yes | yes | yes (MIT) | free | 68 MB (+220 MB while the model runs) | 18 MB (5.9 MB zip) | 865 MB |
 
 "n/v" = not verified. "n/p" = the project publishes no figure. Memory and size figures for other apps are what each
 project publishes about itself, from different machines and methods; read them as rough sizes, not a benchmark.
-Hunch's figures are measured (see Benchmarks). Hunch loads the model only to index or to embed a query, and releases
-it after 5 idle minutes. Spotlight's own indexing processes (`mds_stores`, `mdworker_shared`) run on every Mac
+Hunch's figures are measured (see Benchmarks) as physical footprint, the "Memory" column of Activity Monitor. The
+model runs in a helper process, `hunch-embedder`, which starts when you search by meaning or when new files need
+indexing, and exits after 5 idle minutes, returning all of its memory. Spotlight's own indexing processes (`mds_stores`, `mdworker_shared`) run on every Mac
 whether or not you use another launcher. This table makes no claims about other apps' speed.
 
 ## FAQ
@@ -130,8 +133,14 @@ whether or not you use another launcher. This table makes no claims about other 
 - **Why do permissions reset after an update?** Ad-hoc signatures change with each build, and macOS ties grants to the
   signature.
 - **Does it upload my files?** No.
-- **Disk and memory?** About 90 MB of memory at rest; about 630 MB while the model is loaded for indexing or a query.
-  The index size depends on your files.
+- **Disk and memory?** About 68 MB at rest. Searching by meaning starts a helper process (`hunch-embedder`, about
+  220 MB, 370 MB while indexing) that exits after 5 idle minutes. The index size depends on your files.
+- **Why the Q8_0 model and not a smaller quant?** We compared every EmbeddingGemma 2 GGUF on Hugging Face against
+  BF16 with `Scripts/quant-eval.py` (50 queries, 400 documents, October 2026). Q8_0 (ggml-org and Unsloth, same
+  weights) keeps 97.8 % of each query's top 10 and 100 % of top hits. The best smaller one, Unsloth UD-Q6_K_XL
+  (249 MB), keeps 94.6 % and 96 %; the 4- and 5-bit files keep 74–91 %. A smaller file would not lower memory either:
+  the weights are mapped from disk, so the footprint with the model loaded measured 282–284 MB for Q8_0, Q6_K and Q4_K
+  alike (in-process run).
 - **Can it reuse DigUp's or the Hugging Face cache's model?** Yes, it finds both.
 - **Intel Macs?** No, Apple silicon only.
 - **Uninstall?** Quit it, then delete `/Applications/Hunch.app`,

@@ -80,6 +80,7 @@ let package = Package(
         .library(name: "HunchCore", targets: ["HunchCore"]),
         .executable(name: "Hunch", targets: ["Hunch"]),
         .executable(name: "hunch-bench", targets: ["hunch-bench"]),
+        .executable(name: "hunch-embedder", targets: ["hunch-embedder"]),
     ],
     targets: llamaTargets + [
         .target(
@@ -110,6 +111,12 @@ let package = Package(
         ),
         .executableTarget(
             name: "hunch-bench",
+            dependencies: ["HunchCore"],
+            swiftSettings: ggmlInclude
+        ),
+        // The embedding helper the app runs the model in (ProcessEmbedder); bundled in Contents/MacOS.
+        .executableTarget(
+            name: "hunch-embedder",
             dependencies: ["HunchCore"],
             swiftSettings: ggmlInclude
         ),

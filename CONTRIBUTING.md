@@ -29,7 +29,9 @@ swift build                      # debug build
 - `Sources/HunchCore/Store`: SQLite catalog and content stores.
 - `Sources/HunchCore/Model`: `ModelStore`, which finds, downloads and verifies the model files.
 - `Sources/Hunch`: the app (panel, rows, onboarding, Settings, hotkey, actions).
+- `Sources/hunch-embedder`: the helper process the model runs in (`ProcessEmbedder`); it exits when the model unloads.
 - `Sources/hunch-bench`: engine and incremental-index benchmarks.
+- `Scripts/quant-eval.py`: compares EmbeddingGemma 2 GGUF quantizations against BF16 (top-10 agreement, cosine).
 - `Tests/`: Swift Testing suites for HunchCore and the app.
 
 ## Style

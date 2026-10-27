@@ -55,6 +55,9 @@ func embedDump(to path: String) async -> Int32 {
         return 1
     }
 }
+if let i = args.firstIndex(of: "--embed-eval"), i + 3 < args.count {
+    exit(await embedEval(model: args[i + 1], input: args[i + 2], output: args[i + 3]))
+}
 if let i = args.firstIndex(of: "--embed-dump"), i + 1 < args.count {
     exit(await embedDump(to: args[i + 1]))
 }

@@ -39,7 +39,13 @@ public actor ManagedEmbedder: Embedder {
         self.dimension = dimension
         self.idleTimeout = idleTimeout
         self.keepAlive = keepAlive
-        self.loader = loader ?? { url, dim in try await LlamaEmbedder.load(modelURL: url, dimension: dim) }
+        self.loader =
+            loader ?? { url, dim in
+                if let helper = ProcessEmbedder.helperURL {
+                    return try await ProcessEmbedder.launch(helper: helper, modelURL: url, dimension: dim)
+                }
+                return try await LlamaEmbedder.load(modelURL: url, dimension: dim)
+            }
     }
 
     public var isLoaded: Bool { model != nil }
@@ -76,10 +82,17 @@ public actor ManagedEmbedder: Embedder {
     public func unload() -> Bool {
         guard active == 0, model != nil else { return false }
         model = nil
+        Self.returnFreedMemory()
         reaper?.cancel()
         reaper = nil
         for o in observers { o(false) }
         return true
+    }
+
+    /// llama.cpp frees its many small allocations into malloc's free lists; without this the process keeps tens of
+    /// MB of freed pages after an unload until memory pressure. Runs only on unload, never per query.
+    static func returnFreedMemory() {
+        malloc_zone_pressure_relief(nil, 0)
     }
 
     /// Forgets a remembered load failure (e.g. after the model file was installed).
@@ -148,6 +161,7 @@ public actor ManagedEmbedder: Embedder {
             // keepAlive suspended: re-check that nothing started meanwhile.
             if active == 0, ContinuousClock.now >= lastUse + idleTimeout {
                 model = nil
+                Self.returnFreedMemory()
                 for o in observers { o(false) }
                 break
             }

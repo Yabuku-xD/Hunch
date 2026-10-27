@@ -56,6 +56,7 @@ public actor ManagedMediaEmbedder: ImageEmbedding {
     public func unload() async {
         if let m = loaded as? MediaEmbedder { await m.close() }
         loaded = nil
+        ManagedEmbedder.returnFreedMemory()
         reaper?.cancel()
         reaper = nil
     }
@@ -75,6 +76,7 @@ public actor ManagedMediaEmbedder: ImageEmbedding {
         guard ContinuousClock.now - lastUse >= idleTimeout else { return false }
         if let m = loaded as? MediaEmbedder { await m.close() }
         loaded = nil
+        ManagedEmbedder.returnFreedMemory()
         reaper = nil
         return true
     }

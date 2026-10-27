@@ -66,12 +66,12 @@ public actor LlamaEmbedder: Embedder {
         guard FileManager.default.fileExists(atPath: modelURL.path) else {
             throw EmbedderError.modelMissing(modelURL.path)
         }
-        let runtime = try LlamaRuntime(modelURL: modelURL)
+        let runtime = try autoreleasepool { try LlamaRuntime(modelURL: modelURL) }
         guard dimension > 0, dimension <= runtime.outputSize else {
             throw EmbedderError.invalidDimension(requested: dimension, model: runtime.outputSize)
         }
         // Build the Metal pipelines now so the first real query is warm.
-        _ = try runtime.embed([Self.queryPrompt("warm up")], dimension: dimension)
+        _ = try runtime.embed([Self.queryPrompt("warm up")], dimension: dimension, role: .query)
         self.modelURL = modelURL
         self.dimension = dimension
         self.modelDimension = runtime.outputSize
@@ -85,24 +85,56 @@ public actor LlamaEmbedder: Embedder {
     }
 
     public func embedQueries(_ q: [String]) async throws -> [[Float]] {
-        try runtime.embed(q.map(Self.queryPrompt), dimension: dimension)
+        try runtime.embed(q.map(Self.queryPrompt), dimension: dimension, role: .query)
     }
 
     public func embedDocuments(_ d: [(title: String, text: String)]) async throws -> [[Float]] {
-        try runtime.embed(d.map { Self.documentPrompt(title: $0.title, text: $0.text) }, dimension: dimension)
+        try runtime.embed(
+            d.map { Self.documentPrompt(title: $0.title, text: $0.text) }, dimension: dimension, role: .document)
     }
 
     /// Embeds already-templated prompts.
     public func embedRaw(_ prompts: [String]) async throws -> [[Float]] {
-        try runtime.embed(prompts, dimension: dimension)
+        try runtime.embed(prompts, dimension: dimension, role: .document)
     }
 }
 
-/// Owns the llama.cpp model + context. Not thread-safe; only used from `LlamaEmbedder`'s executor.
+/// Owns the llama.cpp model and its contexts. Not thread-safe; only used from `LlamaEmbedder`'s executor.
+///
+/// Two contexts share one set of weights, each created on first use: a small one for search queries (one input of at
+/// most `maxInputTokens`) and a wide one for indexing batches. A search-only load never allocates the wide context's
+/// compute buffers, which are about 4x the small one's.
 final class LlamaRuntime {
     static let maxSequences = 64
     static let maxBatchTokens = 2048
     static let maxInputTokens = 512
+    static let maxQuerySequences = 4
+    /// Search queries are a few words; longer ones are cut here like documents are cut at `maxInputTokens`.
+    static let maxQueryTokens = 128
+
+    enum Role {
+        case query, document
+
+        var tokens: Int { self == .query ? LlamaRuntime.maxQueryTokens : LlamaRuntime.maxBatchTokens }
+        var inputTokens: Int { self == .query ? LlamaRuntime.maxQueryTokens : LlamaRuntime.maxInputTokens }
+        var sequences: Int { self == .query ? LlamaRuntime.maxQuerySequences : LlamaRuntime.maxSequences }
+    }
+
+    /// One llama.cpp context and its token batch.
+    private final class Slot {
+        let context: OpaquePointer
+        var batch: llama_batch
+
+        init(context: OpaquePointer, tokens: Int) {
+            self.context = context
+            batch = llama_batch_init(Int32(tokens), 0, 1)
+        }
+
+        deinit {
+            llama_batch_free(batch)
+            llama_free(context)
+        }
+    }
 
     private static let backend: Void = {
         llama_log_set(
@@ -114,11 +146,11 @@ final class LlamaRuntime {
     }()
 
     private let model: OpaquePointer
-    private let context: OpaquePointer
     private let vocab: OpaquePointer
-    private var batch: llama_batch
+    private var querySlot: Slot?
+    private var documentSlot: Slot?
     let outputSize: Int
-    private let pooling: llama_pooling_type
+    private var pooling: llama_pooling_type
 
     init(modelURL: URL) throws {
         _ = Self.backend
@@ -127,57 +159,80 @@ final class LlamaRuntime {
         guard let model = llama_model_load_from_file(modelURL.path, mp) else {
             throw EmbedderError.modelLoadFailed(modelURL.path)
         }
-        var cp = llama_context_default_params()
-        cp.n_ctx = UInt32(Self.maxBatchTokens)
-        cp.n_batch = UInt32(Self.maxBatchTokens)
-        cp.n_ubatch = UInt32(Self.maxBatchTokens)
-        cp.n_seq_max = UInt32(Self.maxSequences)
-        cp.kv_unified = true
-        cp.embeddings = true
-        cp.pooling_type = LLAMA_POOLING_TYPE_UNSPECIFIED  // as the gguf says (MEAN here)
-        guard let context = llama_init_from_model(model, cp) else {
-            llama_model_free(model)
-            throw EmbedderError.contextFailed
-        }
         guard let vocab = llama_model_get_vocab(model) else {
-            llama_free(context)
             llama_model_free(model)
             throw EmbedderError.modelLoadFailed(modelURL.path)
         }
         self.model = model
-        self.context = context
         self.vocab = vocab
         outputSize = Int(llama_model_n_embd_out(model))
-        pooling = llama_pooling_type(context)
-        batch = llama_batch_init(Int32(Self.maxBatchTokens), 0, 1)
+        pooling = LLAMA_POOLING_TYPE_UNSPECIFIED
+        querySlot = try makeSlot(.query)
     }
 
     deinit {
-        llama_batch_free(batch)
-        llama_free(context)
-        llama_model_free(model)
+        autoreleasepool {
+            querySlot = nil
+            documentSlot = nil
+            llama_model_free(model)
+        }
     }
 
-    func embed(_ prompts: [String], dimension: Int) throws -> [[Float]] {
+    private func makeSlot(_ role: Role) throws -> Slot {
+        var cp = llama_context_default_params()
+        cp.n_ctx = UInt32(role.tokens)
+        cp.n_batch = UInt32(role.tokens)
+        cp.n_ubatch = UInt32(role.tokens)
+        cp.n_seq_max = UInt32(role.sequences)
+        cp.kv_unified = true
+        cp.embeddings = true
+        cp.pooling_type = LLAMA_POOLING_TYPE_UNSPECIFIED  // as the gguf says (MEAN here)
+        guard let context = llama_init_from_model(model, cp) else { throw EmbedderError.contextFailed }
+        pooling = llama_pooling_type(context)
+        return Slot(context: context, tokens: role.tokens)
+    }
+
+    private func slot(_ role: Role) throws -> Slot {
+        switch role {
+        case .query:
+            if let querySlot { return querySlot }
+            let s = try makeSlot(.query)
+            querySlot = s
+            return s
+        case .document:
+            if let documentSlot { return documentSlot }
+            let s = try makeSlot(.document)
+            documentSlot = s
+            return s
+        }
+    }
+
+    /// Metal objects ggml autoreleases on this (non-main) thread would otherwise outlive the call.
+    func embed(_ prompts: [String], dimension: Int, role: Role) throws -> [[Float]] {
+        try autoreleasepool { try embedInPool(prompts, dimension: dimension, role: role) }
+    }
+
+    private func embedInPool(_ prompts: [String], dimension: Int, role: Role) throws -> [[Float]] {
+        let slot = try slot(role)
         var out: [[Float]] = []
         out.reserveCapacity(prompts.count)
         var pending: [[llama_token]] = []
         var pendingTokens = 0
         for prompt in prompts {
-            let tokens = try tokenize(prompt)
-            if pending.count == Self.maxSequences || pendingTokens + tokens.count > Self.maxBatchTokens {
-                out += try run(pending, dimension: dimension)
+            let tokens = try tokenize(prompt, limit: role.inputTokens)
+            if pending.count == role.sequences || pendingTokens + tokens.count > role.tokens {
+                out += try run(pending, dimension: dimension, slot: slot)
                 pending.removeAll(keepingCapacity: true)
                 pendingTokens = 0
             }
             pending.append(tokens)
             pendingTokens += tokens.count
         }
-        if !pending.isEmpty { out += try run(pending, dimension: dimension) }
+        if !pending.isEmpty { out += try run(pending, dimension: dimension, slot: slot) }
         return out
     }
 
-    private func tokenize(_ text: String) throws -> [llama_token] {
+    private func tokenize(_ text: String, limit: Int) throws -> [llama_token] {
         let utf8 = Array(text.utf8)
         var tokens = [llama_token](repeating: 0, count: utf8.count + 8)
         var n = utf8.withUnsafeBufferPointer { p in
@@ -195,29 +250,30 @@ final class LlamaRuntime {
         }
         guard n > 0 else { throw EmbedderError.tokenizeFailed(text) }
         tokens.removeLast(tokens.count - Int(n))
-        if tokens.count > Self.maxInputTokens {
-            tokens = Array(tokens[0..<(Self.maxInputTokens - 1)]) + [llama_vocab_eos(vocab)]
+        if tokens.count > limit {
+            tokens = Array(tokens[0..<(limit - 1)]) + [llama_vocab_eos(vocab)]
         }
         return tokens
     }
 
     /// One llama_decode over ≤ maxSequences inputs whose tokens fit one ubatch.
-    private func run(_ seqs: [[llama_token]], dimension: Int) throws -> [[Float]] {
+    private func run(_ seqs: [[llama_token]], dimension: Int, slot: Slot) throws -> [[Float]] {
+        let context = slot.context
         var n: Int32 = 0
         for (s, tokens) in seqs.enumerated() {
             for (pos, token) in tokens.enumerated() {
                 let i = Int(n)
-                batch.token[i] = token
-                batch.pos[i] = llama_pos(pos)
-                batch.n_seq_id[i] = 1
-                batch.seq_id[i]![0] = llama_seq_id(s)
-                batch.logits[i] = 1
+                slot.batch.token[i] = token
+                slot.batch.pos[i] = llama_pos(pos)
+                slot.batch.n_seq_id[i] = 1
+                slot.batch.seq_id[i]![0] = llama_seq_id(s)
+                slot.batch.logits[i] = 1
                 n += 1
             }
         }
-        batch.n_tokens = n
+        slot.batch.n_tokens = n
         if let memory = llama_get_memory(context) { llama_memory_clear(memory, true) }
-        let rc = llama_decode(context, batch)
+        let rc = llama_decode(context, slot.batch)
         guard rc == 0 else { throw EmbedderError.decodeFailed(rc) }
 
         var vectors: [[Float]] = []

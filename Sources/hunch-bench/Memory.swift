@@ -12,6 +12,22 @@ func memoryMB() -> (rss: Double, footprint: Double) {
     return (Double(usage.ri_resident_size) / 1_048_576, Double(usage.ri_phys_footprint) / 1_048_576)
 }
 
+/// Physical footprint of this process's children (the `hunch-embedder` helper) in MiB; 0 when there are none.
+func childFootprintMB() -> Double {
+    var pids = [pid_t](repeating: 0, count: 64)
+    let n = proc_listchildpids(getpid(), &pids, Int32(pids.count * MemoryLayout<pid_t>.size))
+    guard n > 0 else { return 0 }
+    var total = 0.0
+    for pid in pids.prefix(Int(n)) where pid > 0 {
+        var usage = rusage_info_v4()
+        let rc = withUnsafeMutablePointer(to: &usage) { p in
+            p.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V4, $0) }
+        }
+        if rc == 0 { total += Double(usage.ri_phys_footprint) / 1_048_576 }
+    }
+    return total
+}
+
 /// Returns freed heap to the OS, then lets things settle, so the reading reflects live memory.
 func settle() async {
     malloc_zone_pressure_relief(nil, 0)
@@ -119,6 +135,18 @@ func memoryMeasure(directory dir: URL, dimension: Int) async {
             _ = try await embedder.embedQueries(["dog photos"])
             await settle()
             let loaded = memoryMB()
+            let helperLoaded = childFootprintMB()
+            note(
+                "memory: search-only load: rss \(fmt(loaded.rss)) footprint \(fmt(loaded.footprint)) helper \(fmt(helperLoaded))"
+            )
+            let docs = (0..<64).map { i in
+                (title: "doc \(i)", text: String(repeating: "cordless drill invoice warranty receipt ", count: 6))
+            }
+            _ = try await embedder.embedDocuments(docs)
+            await settle()
+            let indexing = memoryMB()
+            let helperIndexing = childFootprintMB()
+            note("memory: after an indexing batch: rss \(fmt(indexing.rss)) footprint \(fmt(indexing.footprint))")
             await embedder.unload()
             await settle()
             let after = memoryMB()
@@ -137,7 +165,11 @@ func memoryMeasure(directory dir: URL, dimension: Int) async {
             }
             note("memory: footprint model \(fmt(loaded.footprint)) MiB, after unload \(fmt(after.footprint)) MiB")
             lines = [
-                "rss_model_mb=\(fmt(loaded.rss))", "model_load_ms=\(fmt(loadMs))",
+                "rss_model_mb=\(fmt(loaded.rss))", "footprint_model_mb=\(fmt(loaded.footprint))",
+                "footprint_indexing_mb=\(fmt(indexing.footprint))", "footprint_idle_mb=\(fmt(idle.footprint))",
+                "helper_footprint_model_mb=\(fmt(helperLoaded))", "helper_footprint_indexing_mb=\(fmt(helperIndexing))",
+                "helper_footprint_after_unload_mb=\(fmt(childFootprintMB()))",
+                "footprint_after_unload_mb=\(fmt(after.footprint))", "model_load_ms=\(fmt(loadMs))",
                 "rss_after_unload_mb=\(fmt(after.rss))",
             ]
         } catch {

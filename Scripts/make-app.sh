@@ -24,6 +24,7 @@ fi
 
 say "swift build -c release"
 swift build -c release --product "$NAME" --scratch-path "$SCRATCH"
+swift build -c release --product hunch-embedder --scratch-path "$SCRATCH"
 BIN_DIR="$(swift build -c release --scratch-path "$SCRATCH" --show-bin-path)"
 
 say "assembling $APP"
@@ -31,7 +32,9 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources"
 EXE="$APP/Contents/MacOS/$NAME"
 FW="$APP/Contents/Frameworks"
+HELPER="$APP/Contents/MacOS/hunch-embedder"
 cp "$BIN_DIR/$NAME" "$EXE"
+cp "$BIN_DIR/hunch-embedder" "$HELPER"
 
 # llama.framework (llama + ggml + Metal backend + mtmd in one binary). SwiftPM copies it next to the products.
 ditto "$BIN_DIR/llama.framework" "$FW/llama.framework"
@@ -41,12 +44,14 @@ if lipo -archs "$LLAMA_BIN" | grep -q x86_64; then lipo -thin arm64 "$LLAMA_BIN"
 rm -rf "$FW/llama.framework/Headers" "$FW/llama.framework/Modules" \
   "$FW/llama.framework/Versions/A/Headers" "$FW/llama.framework/Versions/A/Modules"
 
-# The executable finds the framework through its bundle rpath only.
-chmod u+w "$EXE"
-while read -r rp; do
-  install_name_tool -delete_rpath "$rp" "$EXE" 2>/dev/null
-done < <(otool -l "$EXE" | awk '/cmd LC_RPATH/{getline; getline; print $2}')
-install_name_tool -add_rpath @executable_path/../Frameworks "$EXE" 2>/dev/null
+# The executables find the framework through their bundle rpath only.
+for bin in "$EXE" "$HELPER"; do
+  chmod u+w "$bin"
+  while read -r rp; do
+    install_name_tool -delete_rpath "$rp" "$bin" 2>/dev/null
+  done < <(otool -l "$bin" | awk '/cmd LC_RPATH/{getline; getline; print $2}')
+  install_name_tool -add_rpath @executable_path/../Frameworks "$bin" 2>/dev/null
+done
 
 say "Info.plist + icon"
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -94,7 +99,7 @@ else
 fi
 
 say "verifying no Homebrew references"
-links=$( { otool -L "$EXE"; otool -l "$EXE" | grep -A2 LC_RPATH; otool -L "$LLAMA_BIN"; otool -l "$LLAMA_BIN" | grep -A2 LC_RPATH; } \
+links=$( { otool -L "$EXE"; otool -l "$EXE" | grep -A2 LC_RPATH; otool -L "$HELPER"; otool -l "$HELPER" | grep -A2 LC_RPATH; otool -L "$LLAMA_BIN"; otool -l "$LLAMA_BIN" | grep -A2 LC_RPATH; } \
   | grep -c /opt/homebrew || true)
 echo "HOMEBREW_LINKS=$links"
 (( links == 0 ))
@@ -107,6 +112,7 @@ say "signing"
 # no Team ID. Scripts/release.sh re-signs with the hardened runtime plus the one entitlement that allows it.
 SIGN_OPTS=(--force --timestamp=none -s -)
 codesign "${SIGN_OPTS[@]}" "$FW/llama.framework"
+codesign "${SIGN_OPTS[@]}" "$HELPER"
 {
   echo "llama.cpp b11669 (ggml-org xcframework, arm64)"
   ( cd "$APP/Contents" && shasum -a 256 "Frameworks/llama.framework/Versions/A/llama" )

@@ -23,9 +23,9 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         let target = pane ?? SettingsPane.restored(from: model.defaults)
         tabs.select(target)
         if !window.isVisible {
+            // Centred on the screen under the pointer every time it opens; the user can move it from there.
             tabs.fit(animate: false)
-            let frame = ScreenProvider.centredFrame(size: window.frame.size)
-            window.setFrameOrigin(CGPoint(x: frame.minX, y: frame.minY + frame.height / 4))
+            window.setFrameOrigin(ScreenProvider.centredFrame(size: window.frame.size).origin)
         }
         ActivationPolicy.windowOpened(window)
         window.makeKeyAndOrderFront(nil)
@@ -134,6 +134,8 @@ final class SettingsTabController: NSTabViewController {
         var frame = window.frame
         frame.origin.y = frame.maxY - height
         frame.size = CGSize(width: SettingsWindowController.width, height: height)
+        // Top edge anchored, but a taller pane never grows past the bottom of the screen.
+        if visible.height > 0, frame.minY < visible.minY { frame.origin.y = visible.minY }
         guard frame != window.frame else { return }
         window.setFrame(frame, display: true, animate: animate && window.isVisible)
     }

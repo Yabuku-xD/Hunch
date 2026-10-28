@@ -5,8 +5,13 @@ import HunchCore
 import Observation
 
 /// In-app updates from GitHub Releases: check, download the zip, verify it against SHA256SUMS.txt and its code
-/// signature, swap the bundle in place and relaunch. One request per check; no timers. Settings and the model folder
+/// signature, swap the bundle in place and relaunch. One request per check. Settings and the model folder
 /// (`~/.hunch/models`) live outside the bundle, so an update keeps both.
+///
+/// Automatic updates are quiet: a check at launch when the last one is a day old, then one a day from a
+/// system-scheduled background activity (macOS picks the moment). A newer release downloads and verifies in the
+/// background, and installs and relaunches only once no Hunch window is open and the Mac has had no input for a
+/// minute, so it never interrupts a search.
 @MainActor
 @Observable
 final class Updater {
@@ -28,9 +33,14 @@ final class Updater {
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var scheduler: NSBackgroundActivityScheduler?
+    /// True while a Hunch window (panel, Settings, the guide) is on screen; a quiet install waits for false.
+    @ObservationIgnored var isBusy: () -> Bool = { false }
     private static let automaticKey = "updates.automatic"
     private static let lastCheckKey = "updates.lastCheck"
     private static let interval: TimeInterval = 24 * 3600
+    /// Passed to the relaunch after a quiet update.
+    static let updatedFlag = "--updated"
 
     init(defaults: UserDefaults = AppDefaults.store) {
         self.defaults = defaults
@@ -42,15 +52,31 @@ final class Updater {
         return nil
     }
 
-    /// At launch: one check when automatic checks are on and the last one is a day old.
-    func checkIfDue() {
-        guard automatic, AppInfo.version != "dev" else { return }
-        let last = defaults.double(forKey: Self.lastCheckKey)
-        guard Date().timeIntervalSince1970 - last >= Self.interval else { return }
-        check()
+    /// At launch: a check when the last one is a day old, then a daily one scheduled by the system.
+    func startAutomatic() {
+        guard AppInfo.version != "dev", scheduler == nil else { return }
+        checkIfDue()
+        let s = NSBackgroundActivityScheduler(identifier: "\(Bundle.main.bundleIdentifier ?? "app.hunch.Hunch").update")
+        s.repeats = true
+        s.interval = Self.interval
+        s.tolerance = 3600
+        s.qualityOfService = .utility
+        s.schedule { [weak self] done in
+            Task { @MainActor in self?.checkIfDue() }
+            done(.finished)
+        }
+        scheduler = s
     }
 
-    func check() {
+    private func checkIfDue() {
+        guard automatic, phase == .idle || phase == .upToDate else { return }
+        let last = defaults.double(forKey: Self.lastCheckKey)
+        guard Date().timeIntervalSince1970 - last >= Self.interval else { return }
+        check(quiet: true)
+    }
+
+    /// `quiet`: an automatic check. A newer release installs without asking; a failed request stays silent.
+    func check(quiet: Bool = false) {
         switch phase {
         case .checking, .installing: return
         default: break
@@ -65,20 +91,23 @@ final class Updater {
                 defaults.set(Date().timeIntervalSince1970, forKey: Self.lastCheckKey)
                 if let r = try UpdateCheck.release(from: data), UpdateCheck.isNewer(r.version, than: AppInfo.version) {
                     phase = .available(r)
+                    if quiet, automatic { install(quiet: true) }
                 } else {
                     phase = .upToDate
                 }
             } catch {
-                phase = .failed("Could not reach GitHub. Try again later.")
+                phase = quiet ? .idle : .failed("Could not reach GitHub. Try again later.")
             }
         }
     }
 
-    func install() {
+    /// `quiet`: from an automatic check. Waits until Hunch is not in use before it swaps the bundle and relaunches;
+    /// on any problem the update stays available for a manual install, which reports the reason.
+    func install(quiet: Bool = false) {
         guard let release = available else { return }
         let bundle = Bundle.main.bundleURL
         if let problem = Self.placementProblem(bundle) {
-            phase = .failed(problem)
+            if !quiet { phase = .failed(problem) }
             return
         }
         phase = .installing("Downloading \(AppInfo.name) \(release.version)…")
@@ -103,12 +132,20 @@ final class Updater {
                 let app = unpacked.appendingPathComponent(bundle.lastPathComponent)
                 try Self.validate(app, version: release.version)
                 try await Self.run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path])
+                if quiet {
+                    phase = .installing("Version \(release.version) installs when \(AppInfo.name) is not in use.")
+                    try await waitUntilIdle()
+                }
                 phase = .installing("Installing…")
                 _ = try FileManager.default.replaceItemAt(bundle, withItemAt: app)
-                Self.relaunch(bundle)
+                Self.relaunch(bundle, quiet: quiet)
             } catch {
-                phase = .failed(
-                    (error as? UpdateError)?.message ?? "The update failed. Your current version still works.")
+                if quiet {
+                    phase = .available(release)
+                } else {
+                    phase = .failed(
+                        (error as? UpdateError)?.message ?? "The update failed. Your current version still works.")
+                }
             }
         }
     }
@@ -129,6 +166,18 @@ final class Updater {
             return "\(AppInfo.name) cannot replace itself in \(bundle.deletingLastPathComponent().path)."
         }
         return nil
+    }
+
+    /// One look every 30 s, only while a verified update waits: no Hunch window open and no input for a minute.
+    private func waitUntilIdle() async throws {
+        while isBusy() || Self.secondsSinceInput() < 60 {
+            try await Task.sleep(for: .seconds(30))
+        }
+    }
+
+    private static func secondsSinceInput() -> TimeInterval {
+        guard let any = CGEventType(rawValue: ~0) else { return .infinity }
+        return CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: any)
     }
 
     private static func requireOK(_ response: URLResponse) throws {
@@ -176,11 +225,13 @@ final class Updater {
     ///
     /// `open -n`: for a moment after the process exits, Launch Services still lists it as running, and a plain `open`
     /// sends the reopen to that dead instance (error -600) instead of launching, so the app quit and stayed closed.
-    private static func relaunch(_ bundle: URL) {
+    /// `quiet`: the new process gets `--updated` and starts in the menu bar without opening Settings.
+    private static func relaunch(_ bundle: URL, quiet: Bool) {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        let open = quiet ? "/usr/bin/open -n \"$2\" --args \(updatedFlag)" : "/usr/bin/open -n \"$2\""
         p.arguments = [
-            "-c", "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; /usr/bin/open -n \"$2\"", "sh",
+            "-c", "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; \(open)", "sh",
             String(ProcessInfo.processInfo.processIdentifier), bundle.path,
         ]
         try? p.run()

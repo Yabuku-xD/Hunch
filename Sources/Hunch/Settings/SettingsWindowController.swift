@@ -15,6 +15,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     var isKey: Bool { window?.isKeyWindow ?? false }
+    var isVisible: Bool { window?.isVisible ?? false }
 
     func show(pane: SettingsPane? = nil) {
         model.reload()

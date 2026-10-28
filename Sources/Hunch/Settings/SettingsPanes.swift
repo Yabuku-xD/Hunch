@@ -334,7 +334,7 @@ struct AboutPane: View {
             }
             Section {
                 UpdateRow(updater: Updater.shared)
-                Toggle("Check for updates automatically", isOn: Bindable(Updater.shared).automatic)
+                Toggle("Update automatically", isOn: Bindable(Updater.shared).automatic)
             }
             Section {
                 HStack {

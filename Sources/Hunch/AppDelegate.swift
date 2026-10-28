@@ -93,12 +93,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             || env["HUNCH_FIXTURE"] != nil || env["HUNCH_PROBE"] == "1"
         if !scriptedRun {
             installStatusItem(controller: controller, settings: settings, guide: guide)
-            Updater.shared.checkIfDue()
+            Updater.shared.startAutomatic()
         }
         #else
         installStatusItem(controller: controller, settings: settings, guide: guide)
-        Updater.shared.checkIfDue()
+        Updater.shared.startAutomatic()
         #endif
+        Updater.shared.isBusy = { controller.isVisible || settings.isVisible || guide.isOpen }
 
         DistributedNotificationCenter.default().addObserver(
             forName: Self.reopenNotification, object: nil, queue: .main
@@ -183,7 +184,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         #else
         let guideForced = false
         #endif
-        let loginItem = launchedAsLoginItem
+        // A relaunch after a quiet update starts like a login item: in the menu bar, no window.
+        let loginItem = launchedAsLoginItem || CommandLine.arguments.contains(Updater.updatedFlag)
         let firstRun = OnboardingFlow.showsAtLaunch(
             defaults: AppDefaults.store, isLoginItem: loginItem, scripted: scripted)
         if firstRun, !guideForced {

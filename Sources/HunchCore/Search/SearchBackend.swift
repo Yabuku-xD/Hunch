@@ -56,6 +56,7 @@ public final class SearchBackend: IndexStatusProviding {
     private let state: Mutex<State>
     /// Read on every result row; kept separate from `state` so lookups never wait on startup work.
     private let catalogRef = CatalogRef()
+    private let appsCache = Mutex<(catalog: Catalog, written: Int, apps: [Item])?>(nil)
     private final class CatalogRef: Sendable {
         let value = Mutex<Catalog?>(nil)
         func get() -> Catalog? { value.withLock { $0 } }
@@ -485,11 +486,14 @@ public final class SearchBackend: IndexStatusProviding {
         attempt("reorder") { try catalogRef.get()?.reorderPins(paths) }
     }
 
-    /// Favorites then Recents (minus pinned items); empty sections are omitted.
+    /// Favorites, Recents (minus pinned items), then every application A to Z (minus both); empty sections are
+    /// omitted.
     public func suggestions(recentLimit: Int = 8) -> [SearchSection] {
         let favorites = favorites()
         let pinned = Set(favorites.map(\.id))
         let recents = recents(limit: recentLimit + pinned.count).filter { !pinned.contains($0.id) }.prefix(recentLimit)
+        let shown = pinned.union(recents.map(\.id))
+        let apps = applications().filter { !shown.contains($0.id) }
         var out: [SearchSection] = []
         if !favorites.isEmpty {
             out.append(
@@ -503,7 +507,39 @@ public final class SearchBackend: IndexStatusProviding {
                     kind: .recents, title: "Recents",
                     results: recents.map { SearchResult(item: $0, score: 0, source: .name) }))
         }
+        if !apps.isEmpty {
+            out.append(
+                SearchSection(
+                    kind: .applications, title: "Applications",
+                    results: apps.map { SearchResult(item: $0, score: 0, source: .name) }))
+        }
         return out
+    }
+
+    /// Apps in the application folders, A to Z. Rebuilt only after the catalog changed, so showing the panel costs
+    /// no scan.
+    public func applications() -> [Item] {
+        guard let catalog = catalogRef.get() else { return [] }
+        let written = catalog.itemRowsWritten.load(ordering: .relaxed)
+        if let cached = appsCache.withLock({ $0 }), cached.written == written, cached.catalog === catalog {
+            return cached.apps
+        }
+        let roots = Crawler.appRoots.map { PathKey.canonical(Crawler.realPath($0.path)) }
+        let apps = Self.launchable(catalog.items(kind: .app), roots: roots)
+        appsCache.withLock { $0 = (catalog, written, apps) }
+        return apps
+    }
+
+    /// The apps under `roots` that are not inside another bundle, sorted by name without ".app" as Finder sorts.
+    static func launchable(_ apps: [Item], roots: [String]) -> [Item] {
+        apps.filter { app in
+            let parent = (app.path as NSString).deletingLastPathComponent
+            return roots.contains { Crawler.isInside(app.path, $0) } && !parent.contains(".app/")
+                && !parent.hasSuffix(".app")
+        }
+        .map { (item: $0, key: ($0.name as NSString).deletingPathExtension) }
+        .sorted { $0.key.localizedStandardCompare($1.key) == .orderedAscending }
+        .map(\.item)
     }
 
     // MARK: Settings

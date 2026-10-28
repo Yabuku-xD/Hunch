@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- With an empty search, the list shows every app in the Applications folders A to Z under Favorites and Recents.
+
 ### Fixed
 
 - Update and Relaunch opens the new version again. Hunch quit and stayed closed: Launch Services still listed the

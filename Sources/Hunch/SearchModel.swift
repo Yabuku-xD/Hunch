@@ -287,9 +287,13 @@ final class SearchModel {
             builder.add(
                 .item(r.id), .name(r), .recents, theme.nameContent, first: i == 0, last: i == min(recents.count, 8) - 1)
         }
+        let apps = sections.first { $0.kind == .applications }?.results ?? []
+        for (i, r) in apps.enumerated() {
+            builder.add(.item(r.id), .name(r), .apps, theme.nameContent, first: i == 0, last: i == apps.count - 1)
+        }
         commit(builder, message: nil, keepSelection: false)
-        // hotkey → ↵ reopens the last item: the slip starts on Recents row 1, else on the shelf.
-        selectedID = recents.isEmpty ? (favorites.isEmpty ? nil : .rail) : .item(recents[0].id)
+        // hotkey → ↵ reopens the last item: the slip starts on Recents row 1, else on the shelf, else the first app.
+        selectedID = recents.first.map { .item($0.id) } ?? (favorites.isEmpty ? apps.first.map { .item($0.id) } : .rail)
         railIndex = 0
     }
 

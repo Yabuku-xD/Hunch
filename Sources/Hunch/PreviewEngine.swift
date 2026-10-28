@@ -83,6 +83,15 @@ struct PreviewEngine: SearchEngine {
                     kind: .recents, title: "Recents",
                     results: recents.map { SearchResult(item: $0, score: 0, source: .name) }))
         }
+        let shown = pinnedIDs.union(recents.map(\.id))
+        let apps = entries.map(\.item).filter { $0.kind == .app && !shown.contains($0.id) }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        if !apps.isEmpty {
+            out.append(
+                SearchSection(
+                    kind: .applications, title: "Applications",
+                    results: apps.map { SearchResult(item: $0, score: 0, source: .name) }))
+        }
         return out
     }
 

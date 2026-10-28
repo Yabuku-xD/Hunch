@@ -147,6 +147,28 @@ private func waitUntil(_ timeout: Duration = .seconds(3), _ cond: () async -> Bo
         #expect(sections[1].results.map(\.item.path) == [real(b), real(a)])  // pinned c not repeated
         await backend.coordinator?.stop()
     }
+
+    @Test func applicationsAreLaunchableAppsAToZ() throws {
+        let dir = scratch("suggest-apps")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let catalog = try Catalog(url: dir.appendingPathComponent("index.sqlite"))
+        let paths = [
+            "/Applications/zed.app", "/Applications/Utilities/Activity Monitor.app", "/Applications/Xcode.app",
+            "/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app", "/System/Applications/Notes.app",
+            "/Users/me/Downloads/Build.app", "/Applications/Notes Folder",
+        ]
+        _ = try catalog.upsertEntries(
+            paths.map {
+                CrawlEntry(
+                    path: $0, name: ($0 as NSString).lastPathComponent, kind: $0.hasSuffix(".app") ? .app : .folder,
+                    modified: .now)
+            })
+        let apps = catalog.items(kind: .app)
+        #expect(apps.count == 6)
+        // Nested helpers and stray bundles outside the application folders are not listed.
+        let listed = SearchBackend.launchable(apps, roots: ["/Applications", "/System/Applications"])
+        #expect(listed.map(\.name) == ["Activity Monitor.app", "Notes.app", "Xcode.app", "zed.app"])
+    }
 }
 
 // MARK: Model resolution, name-only mode

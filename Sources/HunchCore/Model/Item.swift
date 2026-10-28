@@ -78,6 +78,7 @@ public struct SearchSection: Sendable, Identifiable {
     public enum Kind: String, Sendable {
         case favorites
         case recents
+        case applications
     }
 
     public var kind: Kind

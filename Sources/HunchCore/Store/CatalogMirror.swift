@@ -35,6 +35,15 @@ struct CatalogMirror: Sendable {
         return s < 0 ? nil : item(slot: Int(s))
     }
 
+    /// Live items of one kind, scanning only the kind bytes (materializes just the matches).
+    func items(kind: ItemKind) -> [Item] {
+        var out: [Item] = []
+        for i in kinds.indices where kinds[i] == kind.rawValue {
+            if let item = liveItem(slot: i) { out.append(item) }
+        }
+        return out
+    }
+
     /// Slots in `0..<slotCount`; dead slots return nil.
     var slotCount: Int { ids.count }
 

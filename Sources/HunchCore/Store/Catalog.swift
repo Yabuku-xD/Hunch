@@ -174,6 +174,11 @@ public final class Catalog: Sendable {
         cache.withLock { $0.count }
     }
 
+    /// Every item of `kind`, from the in-memory mirror.
+    public func items(kind: ItemKind) -> [Item] {
+        cache.withLock { $0.items(kind: kind) }
+    }
+
     /// Every item, from the in-memory mirror (a snapshot; no SQL, no up-front array).
     public var items: CatalogItems {
         CatalogItems(mirror: cache.withLock { $0 })

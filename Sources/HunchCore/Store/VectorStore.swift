@@ -34,7 +34,7 @@ public actor VectorStore: VectorIndex {
     /// Bumped when the meaning of `vector_rows.id` changes.
     private static let keyFormat = "chunk64"
 
-    public init(directory: URL = Paths.appSupport, dimension: Int = 256) throws {
+    public init(directory: URL = Paths.indexDirectory, dimension: Int = 256) throws {
         guard dimension > 0 else { throw SQLiteError(code: -1, message: "vector dimension must be positive") }
         self.dimension = dimension
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

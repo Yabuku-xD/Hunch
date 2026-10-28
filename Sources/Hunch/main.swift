@@ -17,6 +17,7 @@ setenv("GGML_METAL_NO_RESIDENCY", "1", 0)
 // 1.0.0 was "BetterSpotlight" (bundle id app.betterspotlight.BetterSpotlight): carry its data and settings over once.
 Paths.migrateLegacyAppSupport()
 Paths.migrateModelsToDotFolder()
+Paths.migrateIndexToDotFolder()
 let legacyDefaults = "app.betterspotlight.BetterSpotlight"
 if let old = UserDefaults.standard.persistentDomain(forName: legacyDefaults),
     UserDefaults.standard.persistentDomain(forName: Bundle.main.bundleIdentifier ?? "")?.isEmpty ?? true

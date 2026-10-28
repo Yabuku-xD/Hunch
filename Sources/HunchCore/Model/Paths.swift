@@ -2,10 +2,11 @@ import Foundation
 
 /// Well-known locations.
 public struct Paths: Sendable {
-    /// ~/Library/Application Support/Hunch
-    public static var appSupport: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Hunch", isDirectory: true)
+    /// The index (catalog, vectors, full text, content queue): `~/.hunch/index`.
+    public static var indexDirectory: URL { indexDirectory() }
+
+    public static func indexDirectory(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+        dotFolder(home: home).appendingPathComponent("index", isDirectory: true)
     }
 
     /// 1.0.0 shipped as "BetterSpotlight". Moves its index and models to the Hunch folder once, so an update keeps
@@ -29,7 +30,7 @@ public struct Paths: Sendable {
         dotFolder(home: home).appendingPathComponent("models", isDirectory: true)
     }
 
-    /// Up to 1.1.0 the model lived in `~/Library/Application Support/Hunch/Models`. Moves those files (model, partial
+    /// Test builds before 1.0.0 kept the model in `~/Library/Application Support/Hunch/Models`. Moves those files (model, partial
     /// downloads, checksum cache) to `~/.hunch/models` once, so an update does not download 865 MB again. A rename on
     /// the same volume: no copy, no extra disk space. Does nothing once the old folder is gone.
     public static func migrateModelsToDotFolder(home: URL = FileManager.default.homeDirectoryForCurrentUser) {
@@ -42,6 +43,23 @@ public struct Paths: Sendable {
             try? fm.moveItem(at: old.appendingPathComponent(name), to: new.appendingPathComponent(name))
         }
         if (try? fm.contentsOfDirectory(atPath: old.path))?.isEmpty ?? false { try? fm.removeItem(at: old) }
+    }
+
+    /// Test builds before 1.0.0 kept the index in `~/Library/Application Support/Hunch`. Moves every file there (after
+    /// `migrateModelsToDotFolder` took the models) to `~/.hunch/index` once, so an update keeps the index. A rename on
+    /// the same volume; a file already in the new folder is never replaced. Runs before the index opens (main.swift,
+    /// after the single-instance lock). Removes the old folder once it is empty.
+    public static func migrateIndexToDotFolder(home: URL = FileManager.default.homeDirectoryForCurrentUser) {
+        let fm = FileManager.default
+        let old = home.appendingPathComponent("Library/Application Support/Hunch", isDirectory: true)
+        guard let names = try? fm.contentsOfDirectory(atPath: old.path) else { return }
+        let new = indexDirectory(home: home)
+        if !names.isEmpty { try? fm.createDirectory(at: new, withIntermediateDirectories: true) }
+        for name in names where name != "Models" && !fm.fileExists(atPath: new.appendingPathComponent(name).path) {
+            try? fm.moveItem(at: old.appendingPathComponent(name), to: new.appendingPathComponent(name))
+        }
+        let left = (try? fm.contentsOfDirectory(atPath: old.path)) ?? []
+        if left.allSatisfy({ $0 == ".DS_Store" }) { try? fm.removeItem(at: old) }
     }
 
     /// The resolved embedding model, or its download path when it is missing (loading it then fails cleanly).

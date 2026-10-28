@@ -32,8 +32,8 @@
 - Everything runs on your Mac. There is no telemetry and no account.
 - Network calls: the optional model download from Hugging Face and the update check against GitHub Releases (at
   most once a day; turn it off in Settings → About). Neither sends anything about your files.
-- The model lives in `~/.hunch/models`, the index in `~/Library/Application Support/Hunch`. Files that look like
-  secrets are indexed by name only.
+- Everything Hunch stores is in `~/.hunch`: the index in `~/.hunch/index`, the model in `~/.hunch/models`. Files
+  that look like secrets are indexed by name only.
 
 ## Install
 
@@ -44,9 +44,10 @@
    **Open Anyway** and authenticate.
 4. Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/Hunch.app`.
 
-Updates install from inside the app: Settings → About → **Update and Relaunch**, or the menu bar item. Hunch downloads
-the release from GitHub, checks it against the release's `SHA256SUMS.txt` and its code signature, replaces itself and
-relaunches. The index, the model and your settings stay. No "Open Anyway" is needed for updates.
+Updates are quiet and automatic: once a day Hunch checks GitHub Releases, downloads a newer version, checks it
+against the release's `SHA256SUMS.txt` and its code signature, and replaces itself the next time no Hunch window is
+open and the Mac has been idle for a minute. It relaunches in the menu bar. The index, the model and your settings
+stay, and no "Open Anyway" is needed. Turn it off, or update by hand, in Settings → About.
 
 Permissions: Full Disk Access is optional (it widens what can be indexed); Speech Recognition is only needed for
 transcripts of audio and video.
@@ -144,8 +145,9 @@ whether or not you use another launcher. This table makes no claims about other 
   the weights are mapped from disk, so the footprint with the model loaded measured 282–284 MB for Q8_0, Q6_K and Q4_K
   alike (in-process run).
 - **Intel Macs?** No, Apple silicon only.
-- **Uninstall?** Quit it, then delete `/Applications/Hunch.app`,
-  `~/.hunch`, `~/Library/Application Support/Hunch` and the app's preferences in `~/Library/Preferences`.
+- **Uninstall?** Quit it, then delete `/Applications/Hunch.app`, `~/.hunch` and the app's preferences
+  (`~/Library/Preferences/app.hunch.Hunch.plist`). To reinstall later without indexing again, keep
+  `~/.hunch/index` (and `~/.hunch/models`).
 
 ## Credits
 

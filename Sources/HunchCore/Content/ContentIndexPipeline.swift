@@ -74,12 +74,12 @@ public actor ContentIndexPipeline: ContentPipeline {
         try queue.settleExtracted(to: self.embedder == nil ? .done : .extracted)
     }
 
-    /// Default locations under Application Support.
+    /// Default locations in `~/.hunch/index`.
     public static func standard(
         media: (any ImageEmbedding)? = nil, embedder: (any Embedder)? = nil,
         vectors: (any VectorIndex)? = nil
     ) throws -> ContentIndexPipeline {
-        let dir = Paths.appSupport
+        let dir = Paths.indexDirectory
         return try ContentIndexPipeline(
             fullText: FullTextIndex(url: dir.appendingPathComponent("content.sqlite")),
             queueURL: dir.appendingPathComponent("content-queue.sqlite"),

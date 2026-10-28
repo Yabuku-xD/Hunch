@@ -1,7 +1,7 @@
 import Foundation
 import Synchronization
 
-/// id → Item catalog backed by SQLite at `Paths.appSupport/index.sqlite` (owner: engine).
+/// id → Item catalog backed by SQLite at `Paths.indexDirectory/index.sqlite` (owner: engine).
 ///
 /// Tables: `items` (the entries, with `embedded` = 1 once a vector exists for the current name/mtime/hash),
 /// `meta` (key/value, e.g. the FSEvents last event id and `IndexSettings`), `opens` (per-path open count, last open
@@ -45,7 +45,7 @@ public final class Catalog: Sendable {
     /// Rows of `items` inserted/updated/deleted by this process (bench + tests: "rows written").
     public let itemRowsWritten = Atomic<Int>(0)
 
-    public static var defaultURL: URL { Paths.appSupport.appendingPathComponent("index.sqlite") }
+    public static var defaultURL: URL { Paths.indexDirectory.appendingPathComponent("index.sqlite") }
 
     private let state: Mutex<DB>
     private let cache: Mutex<CatalogMirror>

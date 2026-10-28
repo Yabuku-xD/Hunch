@@ -142,6 +142,7 @@ final class OnboardingModel {
     @ObservationIgnored let defaults: UserDefaults
     @ObservationIgnored private let admin: IndexAdmin?
     @ObservationIgnored private var countTask: Task<Void, Never>?
+    @ObservationIgnored private var filledFromIndex = false
     @ObservationIgnored private var modelTask: Task<Void, Never>?
     @ObservationIgnored var onClose: (() -> Void)?
 
@@ -155,20 +156,9 @@ final class OnboardingModel {
         self.admin = admin
         self.defaults = defaults
         flow = OnboardingFlow(defaults: defaults, reopened: reopened, forcedStep: forcedStep)
-        var rows = FolderChoice.defaults(home: home)
-        // Re-opened: the current roots fill the checklist.
-        if reopened, let current = admin?.userRoots, !current.isEmpty {
-            let paths = Set(current.map(\.standardizedFileURL.path))
-            for i in rows.indices { rows[i].checked = paths.contains(rows[i].url.standardizedFileURL.path) }
-            for url in current where !rows.contains(where: { $0.url.standardizedFileURL == url.standardizedFileURL }) {
-                rows.insert(
-                    FolderChoice(
-                        url: url, name: FileManager.default.displayName(atPath: url.path), checked: true,
-                        isHome: false, isProtected: false, count: .counting), at: rows.count - 1)
-            }
-        }
-        folders = rows
+        folders = FolderChoice.defaults(home: home)
         modelState = models.state
+        fillFromIndex()
         #if DEBUG
         if DebugOverrides.hotKeyState == "works" { hotKeyWorks = true }
         // HUNCH_TCC_RESULT shows the post-Continue row state (as after Back from step 4): Continue itself advances at once.
@@ -184,6 +174,26 @@ final class OnboardingModel {
 
     func enter(_ step: Int) {
         if !appeared.contains(step) { appeared.insert(step) }
+        // The index loads in the background; it may have been empty when the guide opened.
+        if step == 3, fillFromIndex() { countFolders() }
+    }
+
+    /// The roots an existing index already has fill the checklist: on a re-open, and on a first run over a kept
+    /// index (a reinstall), so Continue keeps those folders instead of dropping them and indexing again. Applied once,
+    /// before the user changes anything.
+    @discardableResult
+    private func fillFromIndex() -> Bool {
+        guard !filledFromIndex, let current = admin?.userRoots, !current.isEmpty else { return false }
+        filledFromIndex = true
+        let paths = Set(current.map(\.standardizedFileURL.path))
+        for i in folders.indices { folders[i].checked = paths.contains(folders[i].url.standardizedFileURL.path) }
+        for url in current where !folders.contains(where: { $0.url.standardizedFileURL == url.standardizedFileURL }) {
+            folders.insert(
+                FolderChoice(
+                    url: url, name: FileManager.default.displayName(atPath: url.path), checked: true,
+                    isHome: false, isProtected: false, count: .counting), at: folders.count - 1)
+        }
+        return true
     }
 
     // MARK: Lifecycle (live work only while the guide is open)

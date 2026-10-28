@@ -357,7 +357,7 @@ private func modelsDir(_ home: URL) -> URL { home.appendingPathComponent(".hunch
         #expect(store.state == .missing)
     }
 
-    /// Up to 1.1.0 the model lived in Application Support; it moves to ~/.hunch/models once, without a copy.
+    /// Test builds before 1.0.0 kept the model in Application Support; it moves to ~/.hunch/models once, without a copy.
     @Test func modelsMoveToDotFolder() throws {
         let home = scratch("dot")
         defer { try? FileManager.default.removeItem(at: home) }
@@ -371,6 +371,29 @@ private func modelsDir(_ home: URL) -> URL { home.appendingPathComponent(".hunch
         #expect(!FileManager.default.fileExists(atPath: old.path))
         Paths.migrateModelsToDotFolder(home: home)  // second run: nothing to do
         #expect(FileManager.default.fileExists(atPath: moved.path))
+    }
+
+    /// Test builds before 1.0.0 kept the index in Application Support; it moves to ~/.hunch/index once, without a copy, and a
+    /// file already in the new folder is never replaced.
+    @Test func indexMovesToDotFolder() throws {
+        let home = scratch("dotindex")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let old = home.appendingPathComponent("Library/Application Support/Hunch")
+        let catalog = write(Data("c".utf8), old, "index.sqlite")
+        _ = write(Data("w".utf8), old, "index.sqlite-wal")
+        let inode = try FileManager.default.attributesOfItem(atPath: catalog.path)[.systemFileNumber] as? Int
+        let new = Paths.indexDirectory(home: home)
+        _ = write(Data("newer".utf8), new, "vectors.bin")
+        _ = write(Data("older".utf8), old, "vectors.bin")
+        Paths.migrateIndexToDotFolder(home: home)
+        let moved = new.appendingPathComponent("index.sqlite")
+        #expect(try FileManager.default.attributesOfItem(atPath: moved.path)[.systemFileNumber] as? Int == inode)
+        #expect(FileManager.default.fileExists(atPath: new.appendingPathComponent("index.sqlite-wal").path))
+        #expect(try Data(contentsOf: new.appendingPathComponent("vectors.bin")) == Data("newer".utf8))
+        #expect(FileManager.default.fileExists(atPath: old.appendingPathComponent("vectors.bin").path))
+        try FileManager.default.removeItem(at: old.appendingPathComponent("vectors.bin"))
+        Paths.migrateIndexToDotFolder(home: home)
+        #expect(!FileManager.default.fileExists(atPath: old.path))
     }
 
     /// importFiles verifies size + SHA and copies into Models/; a wrong file is refused.

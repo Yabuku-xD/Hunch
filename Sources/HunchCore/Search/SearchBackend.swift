@@ -73,7 +73,7 @@ public final class SearchBackend: IndexStatusProviding {
     ///   - projectorURL: the mmproj for image vectors; nil = no image vectors.
     ///   - idleUnload: release the model after this long without a query or pending embedding.
     public init(
-        directory: URL = Paths.appSupport,
+        directory: URL = Paths.indexDirectory,
         roots: [URL]? = nil,
         modelURL: URL? = ModelStore.shared.resolve()?.text,
         projectorURL: URL? = ModelStore.shared.resolve()?.projector,

@@ -46,7 +46,10 @@ enum ActivationPolicy {
     static func windowOpened(_ window: NSWindow) {
         open.insert(ObjectIdentifier(window))
         if NSApp.activationPolicy() != .regular { NSApp.setActivationPolicy(.regular) }
-        NSApp.activate()
+        // Every window here opens because the user asked (launch, reopen, a menu). At launch the cooperative
+        // `activate()` was refused (2 of 2 runs), leaving Settings behind the front app until a second click; the
+        // forced form activated in every run (macOS 27).
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     static func windowClosed(_ window: NSWindow) {

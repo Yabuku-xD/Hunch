@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-10-27
+
+### Fixed
+
+- Opening Hunch brings Settings to the front on the first click; it opened behind the active app before.
+
 ## [1.0.1] - 2026-10-27
 
 ### Fixed
@@ -48,5 +54,6 @@ First release of Hunch.
 - Files that look like secrets are indexed by name only.
 - Network access only for the model download you start, the update check and links you click.
 
+[1.0.2]: https://github.com/Yabuku-xD/Hunch/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Yabuku-xD/Hunch/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Yabuku-xD/Hunch/releases/tag/v1.0.0

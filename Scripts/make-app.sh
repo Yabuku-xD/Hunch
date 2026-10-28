@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 NAME=Hunch
 BUNDLE_ID=${BUNDLE_ID:-app.hunch.Hunch}  # neutral default; publishers pass their own reverse-DNS id
-VERSION=${VERSION:-1.0.1}
+VERSION=${VERSION:-1.0.2}
 BUILD_NUMBER=${BUILD_NUMBER:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}
 MIN_MACOS=26.0
 APP=build/$NAME.app

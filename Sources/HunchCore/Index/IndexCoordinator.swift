@@ -14,7 +14,7 @@ public actor IndexCoordinator {
     public enum MetaKey {
         public static let lastEventID = "index.lastEventID"
         public static let crawlComplete = "index.crawlComplete"
-        /// "uuid@device" per root volume at the last verify (I3).
+        /// "uuid@device" per root volume at the last verify.
         public static let volumes = "index.volumes"
         public static let rulesVersion = "index.rulesVersion"
     }
@@ -52,10 +52,10 @@ public actor IndexCoordinator {
     public private(set) var activity: Activity = .idle
     private let onActivity: (@Sendable (Activity) -> Void)?
     private let onChange: ChangeSink?
-    /// K18: Low Power / thermal pause for name embedding (same policy object as the content lanes).
+    /// Low Power / thermal pause for name embedding (same policy object as the content lanes).
     private let policy: IndexPolicy
     /// Last hand-off to `onChange`; each one waits for the previous, so the sink sees changes in order without the
-    /// watcher's apply ever waiting on a busy content pipeline (that wait made names visible 2 s late, §C s5).
+    /// watcher's apply ever waiting on a busy content pipeline (that wait made names visible 2 s late).
     private var forwardTail: Task<Void, Never>?
     /// The caller already filled `nameIndex` from this catalog; skip the reload on a replay start.
     private let namesLoaded: Bool
@@ -73,7 +73,7 @@ public actor IndexCoordinator {
     /// lastEventID meta writes so far (K9 test: bursts of batches cost ≤ 1 write per 5 s).
     public private(set) var metaWrites = 0
     public private(set) var lastVerify: VerifyReport?
-    /// Folders that could not be listed in the last full scan (K21).
+    /// Folders that could not be listed in the last full scan.
     public private(set) var unreadable: [String] = []
     /// Name vectors skipped because their exact model input was unchanged.
     public private(set) var nameEmbedsSkipped = 0
@@ -123,7 +123,7 @@ public actor IndexCoordinator {
             since = id
         } else {
             if !namesLoaded { nameIndex.replaceAll(await catalog.allItems()) }
-            // I3: the journal is only trusted on the same volume instance; otherwise a stat-only verify.
+            // The journal is only trusted on the same volume instance; otherwise a stat-only verify.
             let stored = await catalog.meta(MetaKey.volumes)
             let current = Self.volumeFingerprint(crawler.rootPaths)
             let rulesOK = await catalog.meta(MetaKey.rulesVersion) == IndexSettings.rulesVersion
@@ -194,7 +194,7 @@ public actor IndexCoordinator {
         wake(&resumeWaiters)
     }
 
-    /// K9: 0.25 s FSEvents latency while the panel is visible, 0.5 s hidden (restarts the stream from the last
+    /// 0.25 s FSEvents latency while the panel is visible, 0.5 s hidden (restarts the stream from the last
     /// delivered id; nothing is lost).
     public func setPanelVisible(_ visible: Bool) {
         let latency = visible ? 0.25 : 0.5
@@ -214,7 +214,7 @@ public actor IndexCoordinator {
         return startID
     }
 
-    /// Stat-only verify scan (I3): walks `subtree` (or every root), compares each entry's identity + stamp with the
+    /// Stat-only verify scan: walks `subtree` (or every root), compares each entry's identity + stamp with the
     /// catalog and writes only what differs. Unchanged trees write 0 rows and read no file contents.
     @discardableResult
     public func verify(_ reason: VerifyReason, subtree: String? = nil, crawling: Bool = false) async -> VerifyReport {
@@ -275,7 +275,7 @@ public actor IndexCoordinator {
         return r
     }
 
-    /// Removes `path` and everything below it from the index (range delete) and keeps it out of later crawls (P17).
+    /// Removes `path` and everything below it from the index (range delete) and keeps it out of later crawls.
     public func exclude(_ path: String) async {
         let p = PathKey.canonical(path)
         if !exclusions.contains(p) { exclusions.append(p) }

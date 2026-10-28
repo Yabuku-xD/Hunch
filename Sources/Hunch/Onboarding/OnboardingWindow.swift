@@ -4,7 +4,7 @@ import SwiftUI
 /// The Welcome Guide window (v4 §4): 560 × min(580, visible height − 72), centred on the screen under the mouse.
 /// 580, not the spec's 460: at 460 the step 1 example rows and the step 3 folder list were cut off under the footer
 /// on every screen (v4 visual check). Shorter screens still scroll the step body over the fixed footer.
-/// Created on open and released on close (M4). Esc and ⌘. are Set Up Later.
+/// Created on open and released on close. Esc and ⌘. are Set Up Later.
 @MainActor
 final class OnboardingWindowController: NSObject, NSWindowDelegate {
     static let width: CGFloat = 560

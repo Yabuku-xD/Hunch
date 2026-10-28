@@ -443,25 +443,3 @@ private func modelsDir(_ home: URL) -> URL { home.appendingPathComponent(".hunch
         await backend.content?.stop()
     }
 }
-
-@Suite struct LegacyAppSupportTests {
-    @Test func movesBetterSpotlightDataOnceAndNeverOverwrites() throws {
-        let home = FileManager.default.temporaryDirectory.appendingPathComponent("hunch-migrate-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: home) }
-        let support = home.appendingPathComponent("Library/Application Support")
-        let old = support.appendingPathComponent("BetterSpotlight/Models")
-        try FileManager.default.createDirectory(at: old, withIntermediateDirectories: true)
-        try Data("model".utf8).write(to: old.appendingPathComponent("m.gguf"))
-
-        Paths.migrateLegacyAppSupport(home: home)
-        let moved = support.appendingPathComponent("Hunch/Models/m.gguf")
-        #expect(FileManager.default.fileExists(atPath: moved.path))
-        #expect(!FileManager.default.fileExists(atPath: support.appendingPathComponent("BetterSpotlight").path))
-
-        // A second old folder (a reinstalled 1.0.0) never replaces data already under the new name.
-        try FileManager.default.createDirectory(at: old, withIntermediateDirectories: true)
-        Paths.migrateLegacyAppSupport(home: home)
-        #expect(FileManager.default.fileExists(atPath: moved.path))
-        #expect(FileManager.default.fileExists(atPath: old.path))
-    }
-}

@@ -64,7 +64,7 @@ public struct Crawler: Sendable {
         "venv", ".venv", "site-packages", ".tox", ".gradle", ".next", ".nuxt", ".parcel-cache", ".terraform",
     ]
 
-    /// Apps-only shallow roots added next to `/System/Applications` (K8).
+    /// Apps-only shallow roots added next to `/System/Applications`.
     public static let appOnlyRoots = ["/System/Library/CoreServices", "/System/Library/CoreServices/Applications"]
 
     /// First bytes of a valid CACHEDIR.TAG (bford.info/cachedir).
@@ -144,7 +144,7 @@ public struct Crawler: Sendable {
         return true
     }
 
-    /// Roots strictly inside `root` that are crawled on their own (K19).
+    /// Roots strictly inside `root` that are crawled on their own.
     public func nestedRoots(in root: String) -> [String] {
         rootPaths.filter { $0 != root && Crawler.isInside($0, root) }
     }
@@ -251,7 +251,7 @@ public struct Crawler: Sendable {
     private static let extendedAttrsSupported = Atomic<Bool>(true)
 
     /// Lists one directory: indexable children, plus the child directories to descend into.
-    /// Each entry carries its `FileIdentity` + `FileStamp` from the same call (I1).
+    /// Each entry carries its `FileIdentity` + `FileStamp` from the same call.
     public func listDirectory(_ dir: String) -> (entries: [CrawlEntry], subdirs: [String]) {
         let fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
         guard fd >= 0 else { return ([], []) }
@@ -383,7 +383,7 @@ public struct Crawler: Sendable {
         return (entries, subdirs)
     }
 
-    /// K8: apps bundled inside an app (`Contents/Applications`, `Contents/Developer/Applications`), depth ≤ 2.
+    /// Apps bundled inside an app (`Contents/Applications`, `Contents/Developer/Applications`), depth ≤ 2.
     func nestedApps(in app: String, depth: Int = 0) -> [CrawlEntry] {
         guard depth < 2 else { return [] }
         var out: [CrawlEntry] = []
@@ -464,7 +464,7 @@ public struct Crawler: Sendable {
             prev = String(comp)
             let ext = (comp as NSString).pathExtension.lowercased()
             if !ext.isEmpty && Crawler.packageExtensions.contains(ext) {
-                // K8: a change inside Host.app/Contents/(Developer/)Applications/Child.app maps to Child.
+                // A change inside Host.app/Contents/(Developer/)Applications/Child.app maps to Child.
                 if ext == "app" {
                     let rest = comps[(i + 1)...].map(String.init)
                     for lead in [["Contents", "Applications"], ["Contents", "Developer", "Applications"]]

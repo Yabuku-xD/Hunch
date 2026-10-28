@@ -4,7 +4,7 @@ import Testing
 
 @testable import HunchCore
 
-// v3 plan regression tests: K1 (content runtime), K2 (dataless), K3 (secrets), K5 (Unicode), K6 (catalog ranges).
+// Regression tests: content runtime, dataless files, secrets, Unicode paths, catalog ranges.
 
 private func scratch(_ tag: String) -> URL {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent("V3Tests-\(tag)-\(UUID().uuidString)")

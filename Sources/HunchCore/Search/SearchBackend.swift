@@ -171,7 +171,7 @@ public final class SearchBackend: IndexStatusProviding {
     public var catalog: Catalog? { catalogRef.get() }
     /// The vector store (name + content chunks), once `namesLoaded` is reached.
     public var vectors: VectorStore? { state.withLock { $0.vectors } }
-    /// K1: the content runtime `start()` built (nil while booting, or with `contentIndexing` off).
+    /// The content runtime `start()` built (nil while booting, or with `contentIndexing` off).
     public var content: ContentRuntime? { state.withLock { $0.content } }
 
     /// Kicks off loading + indexing in the background. Idempotent.
@@ -196,7 +196,7 @@ public final class SearchBackend: IndexStatusProviding {
             state.withLock { $0.settings = saved }
         }
 
-        // I8: names.bin when it matches the catalog exactly, else the fold of every name (then a fresh snapshot).
+        // names.bin when it matches the catalog exactly, else the fold of every name (then a fresh snapshot).
         let items = catalog.items
         let snapshot = directory.appendingPathComponent("names.bin")
         let generation = NameIndex.snapshotGeneration(of: items)
@@ -371,7 +371,7 @@ public final class SearchBackend: IndexStatusProviding {
         if settled { Task.detached(priority: .utility) { [weak self] in await self?.refreshDetails() } }
     }
 
-    // MARK: Change stream (P8)
+    // MARK: Change stream
 
     /// Catalog changes (adds, moves, metadata/content updates, removals) as they are applied, one batch per
     /// coordinator publish, with a strictly increasing `generation`. Each call returns an independent stream.
@@ -422,7 +422,7 @@ public final class SearchBackend: IndexStatusProviding {
 
     // MARK: Content pipeline + full text (media team)
 
-    /// K1: builds the content runtime (full text + pipeline sharing this backend's embedder and vectors) and
+    /// Builds the content runtime (full text + pipeline sharing this backend's embedder and vectors) and
     /// attaches it before the coordinator runs, so the first crawl already feeds the queue.
     private func startContent(catalog: Catalog, vectors: VectorStore?) {
         guard state.withLock({ $0.settings.contentIndexing && $0.content == nil }) else { return }
@@ -628,7 +628,7 @@ public final class SearchBackend: IndexStatusProviding {
     }
 
     /// Removes `path` and everything below it from the index (range delete, no rebuild) and keeps it out of later
-    /// crawls by adding it to `IndexSettings.exclusions` (P17).
+    /// crawls by adding it to `IndexSettings.exclusions`.
     public func exclude(_ path: String) async {
         let (settings, coordinator) = state.withLock { s in
             if !s.settings.exclusions.contains(path) { s.settings.exclusions.append(path) }

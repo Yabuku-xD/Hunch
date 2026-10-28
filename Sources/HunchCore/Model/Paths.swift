@@ -9,17 +9,6 @@ public struct Paths: Sendable {
         dotFolder(home: home).appendingPathComponent("index", isDirectory: true)
     }
 
-    /// 1.0.0 shipped as "BetterSpotlight". Moves its index and models to the Hunch folder once, so an update keeps
-    /// the index and the 865 MB model. Safe to call on every launch: it does nothing once the new folder exists.
-    public static func migrateLegacyAppSupport(home: URL = FileManager.default.homeDirectoryForCurrentUser) {
-        let fm = FileManager.default
-        let support = home.appendingPathComponent("Library/Application Support", isDirectory: true)
-        let old = support.appendingPathComponent("BetterSpotlight", isDirectory: true)
-        let new = support.appendingPathComponent("Hunch", isDirectory: true)
-        guard fm.fileExists(atPath: old.path), !fm.fileExists(atPath: new.path) else { return }
-        try? fm.moveItem(at: old, to: new)
-    }
-
     /// Hunch's own folder in the home directory: `~/.hunch`.
     public static func dotFolder(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
         home.appendingPathComponent(".hunch", isDirectory: true)

@@ -163,7 +163,7 @@ echo "HOMEBREW_LINKS=$links"
 echo "Frameworks: $(ls "$FW" | tr '\n' ' ')($(lipo -archs "$LLAMA_BIN"))"
 echo "LSUIElement=$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$APP/Contents/Info.plist")"
 
-# S1: version + sha256 stamp of the bundled native code (taken after signing the framework, since codesign rewrites it).
+# Version + sha256 stamp of the bundled native code (taken after signing the framework, since codesign rewrites it).
 say "signing"
 # Ad-hoc, WITHOUT --options runtime: the hardened runtime enforces library validation, and ad-hoc signatures carry
 # no Team ID. Scripts/release.sh re-signs with the hardened runtime plus the one entitlement that allows it.
@@ -180,7 +180,7 @@ echo "CODESIGN_OK"
 say "built $APP ($(du -sh "$APP" | cut -f1))"
 
 [[ ${HUNCH_SKIP_LAUNCH_CHECK:-0} == 1 ]] || ./Scripts/verify-app.sh "$APP" || exit 1
-# §D UI gate in the verify chain: release `--measure` (panel_show / first_results / commit p50+p95, idle CPU).
+# UI perf gate in the verify chain: release `--measure` (panel_show / first_results / commit p50+p95, idle CPU).
 # Its PERF_GATE line is the verdict; a miss is printed, not fatal, so the remaining checks still report.
 if [[ ${HUNCH_SKIP_PERF:-0} != 1 ]]; then
   say "UI perf gate (--measure)"

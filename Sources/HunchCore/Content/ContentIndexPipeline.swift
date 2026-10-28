@@ -41,7 +41,7 @@ public actor ContentIndexPipeline: ContentPipeline {
     /// Extractions skipped because the bytes were unchanged or another file had the same bytes (blob cache).
     public private(set) var unchangedSkips = 0
     public private(set) var blobClones = 0
-    /// Text chunks sent to the model / served from the chunk-vector cache (I6) / too short for a vector (K12a).
+    /// Text chunks sent to the model / served from the chunk-vector cache / too short for a vector.
     public private(set) var chunksEmbedded = 0
     public private(set) var chunksReused = 0
     public private(set) var chunksTooShort = 0
@@ -94,7 +94,7 @@ public actor ContentIndexPipeline: ContentPipeline {
         spawn(.tier(.images), priority: .utility)
         spawn(.tier(.media), priority: .background)
         if embedder != nil { spawn(.embed, priority: .utility) }
-        // K3: files indexed before a secret rule matched them lose their chunks and vectors (names stay).
+        // Files indexed before a secret rule matched them lose their chunks and vectors (names stay).
         Task(priority: .background) { [weak self] in await self?.purgeSecrets() }
     }
 
@@ -140,7 +140,7 @@ public actor ContentIndexPipeline: ContentPipeline {
                     continue
                 }
                 let modified = item.modified.timeIntervalSince1970
-                // K2: a cloud-only placeholder is never read; a later modify that clears the flag re-queues it.
+                // A cloud-only placeholder is never read; a later modify that clears the flag re-queues it.
                 try queue.upsert(
                     item: item.id, tier: tier, path: item.path, name: item.name, fp: fp,
                     group: group(path: item.path, modified: modified, now: now), modified: modified,
@@ -433,7 +433,7 @@ public actor ContentIndexPipeline: ContentPipeline {
         }
     }
 
-    /// Blob cache (I5): copies another file's full-text rows and vectors for identical bytes. 0 model work.
+    /// Blob cache: copies another file's full-text rows and vectors for identical bytes. 0 model work.
     private func cloneRows(
         from donor: UInt32, to item: UInt32, tier: ContentTier, textVectors: Int,
         imageVectors: Int
@@ -481,7 +481,7 @@ public actor ContentIndexPipeline: ContentPipeline {
         return false
     }
 
-    /// SHA-256 of the exact model input (title + text + output dimension), the chunk-vector cache key (I6).
+    /// SHA-256 of the exact model input (title + text + output dimension), the chunk-vector cache key.
     static func inputHash(title: String, text: String, dimension: Int) -> Data {
         var h = SHA256()
         h.update(data: Data("\(dimension)\u{1F}\(title)\u{1F}".utf8))

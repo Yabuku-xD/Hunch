@@ -115,7 +115,7 @@ public final class HybridSearchEngine: SearchEngine {
     }
 
     private func begin(_ q: String, yieldNames: Bool) -> (first: [SearchResult]?, rest: AsyncStream<[SearchResult]>) {
-        // K17: `name:` / `in:` / `ext:` / `kind:` operators; a plain query parses to itself with no filters.
+        // `name:` / `in:` / `ext:` / `kind:` operators; a plain query parses to itself with no filters.
         let parsed = QueryParser.parse(q.trimmingCharacters(in: .whitespacesAndNewlines))
         let query = parsed.text
         let filtered = parsed.hasFilters
@@ -124,7 +124,7 @@ public final class HybridSearchEngine: SearchEngine {
         var nameHits: [Hit] = []
         var first: [SearchResult] = []
         if query.isEmpty {
-            // `in:Folder` alone: the folder's items via the catalog range (K6), no full scan.
+            // `in:Folder` alone: the folder's items via the catalog range, no full scan.
             if let folder = parsed.folders.first, let scope = state.withLock({ $0.scope }) {
                 for item in scope(folder, config.nameLimit * 8) where parsed.matches(item) {
                     nameHits.append((item.id, 0))

@@ -69,7 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         HotKey.shared.action = { controller.toggle() }
         let wanted = Shortcut.saved ?? .optionSpace
-        // U4: no fallback chord (⌃Space and ⌥⌘Space belong to macOS). A taken chord registers nothing.
+        // No fallback chord (⌃Space and ⌥⌘Space belong to macOS). A taken chord registers nothing.
         if !HotKey.shared.register(wanted) {
             NSLog("%@: %@ is already in use", AppInfo.name, wanted.displayString)
             hotKeyFailed = true
@@ -189,7 +189,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let firstRun = OnboardingFlow.showsAtLaunch(
             defaults: AppDefaults.store, isLoginItem: loginItem, scripted: scripted)
         if firstRun, !guideForced {
-            // U5: first launch shows the guide instead of the panel (at step 2 when the chord is taken).
+            // First launch shows the guide instead of the panel (at step 2 when the chord is taken).
             guide.show(reopened: false, step: hotKeyFailed ? 2 : nil)
         } else if hotKeyFailed, !guideForced, !launch.showSettings {
             // The only reason Settings opens by itself: the chord could not be registered.
@@ -225,7 +225,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    // MARK: Status item (U7)
+    // MARK: Status item
 
     /// The app icon's mark as an 18 pt template: the orb's outline with the glint inside. Needing attention adds a dot.
     static func statusMark(attention: Bool) -> NSImage {

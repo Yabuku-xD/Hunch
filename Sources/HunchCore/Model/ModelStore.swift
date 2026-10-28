@@ -98,7 +98,7 @@ public enum ModelState: Sendable, Equatable {
     case failed(ModelStoreError, progress: DownloadProgress?)
 }
 
-/// UI-facing surface. ModelStore conforms; the app's DEBUG FixtureModelStore conforms too (U14).
+/// UI-facing surface. ModelStore conforms; the app's DEBUG FixtureModelStore conforms too.
 public protocol ModelProviding: AnyObject, Sendable {
     var state: ModelState { get }  // non-blocking snapshot (Mutex), safe on main
     func states() -> AsyncStream<ModelState>  // yields `state` first; progress ≤ 4 Hz

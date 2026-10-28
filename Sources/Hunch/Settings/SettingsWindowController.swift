@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// v4 §5: a 560 pt preferences window. `NSTabViewController` (toolbar style), one hosting controller per pane, created
-/// on open and released on close (M4). Height = min(pane fitting height, visible height − 40), top edge anchored.
+/// on open and released on close. Height = min(pane fitting height, visible height − 40), top edge anchored.
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     static let width: CGFloat = 560

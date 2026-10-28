@@ -14,16 +14,9 @@ if lockFD < 0 || flock(lockFD, LOCK_EX | LOCK_NB) != 0 {
 // whose destructor aborts at exit. For a 300M-parameter embedder residency buys nothing measurable.
 setenv("GGML_METAL_NO_RESIDENCY", "1", 0)
 
-// 1.0.0 was "BetterSpotlight" (bundle id app.betterspotlight.BetterSpotlight): carry its data and settings over once.
-Paths.migrateLegacyAppSupport()
+// Test builds before 1.0.0 kept the model and the index in Application Support: move both to ~/.hunch once.
 Paths.migrateModelsToDotFolder()
 Paths.migrateIndexToDotFolder()
-let legacyDefaults = "app.betterspotlight.BetterSpotlight"
-if let old = UserDefaults.standard.persistentDomain(forName: legacyDefaults),
-    UserDefaults.standard.persistentDomain(forName: Bundle.main.bundleIdentifier ?? "")?.isEmpty ?? true
-{
-    for (key, value) in old { UserDefaults.standard.set(value, forKey: key) }
-}
 
 let arguments = ProcessInfo.processInfo.arguments
 

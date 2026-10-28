@@ -21,7 +21,7 @@ public final class PersistentCatalog: IndexCatalog {
         upsertNow(entries)
     }
 
-    /// Range delete per path (K6): no full-table read in any event path.
+    /// Range delete per path: no full-table read in any event path.
     public func remove(paths: [String]) async -> [UInt32] {
         guard !paths.isEmpty else { return [] }
         return attempt("remove") { try store.deleteSubtree(paths) } ?? []

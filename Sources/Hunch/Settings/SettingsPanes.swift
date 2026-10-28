@@ -2,10 +2,10 @@ import AppKit
 import HunchCore
 import SwiftUI
 
-// The four panes of v4 §5. System controls, unmodified (M2.7); every Form is `.grouped` and scrolls past the
+// The four panes. System controls, unmodified; every Form is `.grouped` and scrolls past the
 // window's height cap.
 
-/// M3.10: notes and errors fade in with 0.15 s ease-out bound to their value; Reduce Motion: instant.
+/// Notes and errors fade in with 0.15 s ease-out bound to their value; Reduce Motion: instant.
 private struct NoteFade<V: Equatable>: ViewModifier {
     let value: V
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

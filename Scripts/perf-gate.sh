@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# S4 / I10 perf gate (v3 plan §C + §D). Exit 0 only when every measured target holds:
-#   1. U13 grep gate: no per-keystroke localization lookups or List/LazyVStack/NSTableView in keystroke-path files.
+# Perf gate. Exit 0 only when every measured target holds:
+#   1. Keystroke-path grep gate: no per-keystroke localization lookups or List/LazyVStack/NSTableView in keystroke-path files.
 #      ANIM_GREP gate: no perpetual or implicit animations (repeatForever, TimelineView, timers, display links,
 #      `.animation(x)` without `value:`) anywhere in Sources/Hunch.
 #   2. App `--measure` (optimized build with the DEBUG measurement hooks compiled in, own scratch path):
@@ -20,14 +20,14 @@ miss() { echo "PERF_MISS $*"; fail=1; }
 MEASURE_ONLY=0
 if [[ ${1:-} == --measure-only ]]; then MEASURE_ONLY=1; shift; fi
 
-# 1. U13 grep gate.
+# 1. Keystroke-path grep gate.
 KEYSTROKE_FILES=(Sources/Hunch/SearchView.swift Sources/Hunch/Rows.swift
                  Sources/Hunch/SearchModel.swift)
 hits=$(grep -nE 'String\(localized:|Bundle\.[a-z]*\.?localizedString|NSLocalizedString|\bList\(|LazyVStack|NSTableView' \
          "${KEYSTROKE_FILES[@]}" | grep -vE '^\S+:[0-9]+:\s*//' || true)
 if [[ -n $hits ]]; then echo "$hits"; miss "U13 keystroke-path grep gate"; else echo "U13_GREP_OK"; fi
 
-# 1b. ANIM_GREP gate (motion rules, v4 spec M3): comment lines excluded. Measure.swift is the DEBUG-only frame
+# 1b. ANIM_GREP gate (motion rules): comment lines excluded. Measure.swift is the DEBUG-only frame
 # counter of --measure (its CADisplayLink is the instrument), so it is exempt. An `.animation(x)` that breaks its
 # line before `value:` counts as explicit when the next line carries the `value:`.
 ANIM_FILES=$(find Sources/Hunch -name '*.swift' ! -name Measure.swift | sort)
@@ -67,7 +67,7 @@ if swift build -c release --scratch-path .build/perf --product Hunch -Xswiftc -D
   check first_results_p95_ms "$(p95 first_results_ms)" 33
   check commit_p95_ms "$(p95 commit_ms)" 12
   check idle_cpu_pct "$(grep '^summary idle_cpu_pct=' "$OUT/measure.log" | sed -E 's/.*idle_cpu_pct=([0-9.]+).*/\1/')" 0.1
-  # U15: what a hover adds to the shown panel (a row hovered with the pointer still, against no hover).
+  # What a hover adds to the shown panel (a row hovered with the pointer still, against no hover).
   flat() { grep -m1 "^summary $1=" "$OUT/measure.log" | sed -E "s/.*$1=(-?[0-9.]+).*/\1/"; }
   check hover_idle_cpu_delta_pct "$(flat hover_idle_cpu_delta_pct)" 0.05
   check hover_footprint_delta_mb "$(flat hover_footprint_delta_mb)" 1
@@ -75,7 +75,7 @@ else
   tail -20 "$OUT/build-app.log"; miss "app build"
 fi
 
-# 3. hunch-bench --incremental (§C).
+# 3. hunch-bench --incremental.
 if (( MEASURE_ONLY )); then
   :
 elif swift build -c release --product hunch-bench >"$OUT/build-bench.log" 2>&1; then

@@ -130,10 +130,10 @@ final class OnboardingModel {
     private(set) var hotKeyWorks = false
     private(set) var isTouchingFolders = false
     private(set) var modelState: ModelState
-    /// Steps whose entrance has played (M3.12 plays once per step): a step not in here renders at opacity 0 /
+    /// Steps whose entrance has played (plays once per step): a step not in here renders at opacity 0 /
     /// scale 0.98 for its first frame, then animates in when `enter` inserts it.
     private(set) var appeared = Set<Int>()
-    /// True for 100 ms on a real hotkey press during step 5 (keycap press motion, M3.14).
+    /// True for 100 ms on a real hotkey press during step 5 (keycap press motion).
     private(set) var keycapPressed = false
     var showsFDA = false
 

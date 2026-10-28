@@ -14,7 +14,7 @@ final class SearchModel {
     var theme: Theme = .large
     /// The target screen's backing scale, set once per show (F11: proofs never read `NSScreen.main`).
     var displayScale: CGFloat = 2
-    /// Roots count for the no-results footnote (U10); set when the roots change, never per keystroke.
+    /// Roots count for the no-results footnote; set when the roots change, never per keystroke.
     @ObservationIgnored var rootsCount = 0
     /// Favorites whose file is gone, computed once per suggestions batch (never `fileExists` in a body, M4).
     private(set) var railMissing: Set<UInt32> = []
@@ -42,7 +42,7 @@ final class SearchModel {
     private(set) var scrollerVisible = false
     private(set) var focusToken = 0
     private(set) var selectAllToken = 0
-    /// An input method has marked (uncommitted) text in the field: names only, prompt hidden (P1, P21, U12).
+    /// An input method has marked (uncommitted) text in the field: names only, prompt hidden.
     private(set) var isComposing = false
 
     let status = StatusModel()
@@ -162,7 +162,7 @@ final class SearchModel {
         if !composing, ranNamesOnly { run() }
     }
 
-    /// U11: one throwaway name query while the panel is ordered out (engine fold tables, buckets, row types), then
+    /// One throwaway name query while the panel is ordered out (engine fold tables, buckets, row types), then
     /// back to the root state. Content legs are skipped.
     func prewarmQuery() {
         for probe in ["a", "e"] { _ = engine.start(probe) }
@@ -401,7 +401,7 @@ final class SearchModel {
         scrollOffset = clampOffset(scrollOffset)
     }
 
-    /// U6: title lines for the first screen of rows, built once per batch (memoised per query, so a content batch
+    /// Title lines for the first screen of rows, built once per batch (memoised per query, so a content batch
     /// that keeps the name rows reuses them) instead of in every row body.
     @ObservationIgnored private var textMemo: (query: String, theme: Theme, byID: [UInt32: RowText]) = ("", .large, [:])
 
@@ -656,7 +656,7 @@ final class SearchModel {
     }
 
     /// Slot number shown in the gutter for a row while ⌘ is held.
-    /// ⌘-digit slots of the first 8 visible result rows, computed once per list pass (U4).
+    /// ⌘-digit slots of the first 8 visible result rows, computed once per list pass.
     func slots() -> [RowID: Int] {
         guard commandHeld, !isEmptyQuery else { return [:] }
         var out: [RowID: Int] = [:]

@@ -195,20 +195,38 @@ final class RunningApps {
 /// "Open in Preview" style verbs: the app macOS opens the file with (the user's default for its type, or the
 /// file's own "Open with" choice). Cached per file while the panel is open; cleared on each show, so a default
 /// changed in Finder shows up the next time.
+///
+/// The lookup runs off the main thread: it reads the file's "Open with" attribute, and inside a protected folder
+/// (Downloads, Desktop, Documents) that read waits for the macOS access prompt, which froze the panel until it was
+/// answered. Until the answer arrives the verb is plain "Open".
 @MainActor
-enum DefaultApp {
-    private static var names: [String: String] = [:]
+@Observable
+final class DefaultApp {
+    private static let shared = DefaultApp()
+    private var names: [String: String] = [:]
+    @ObservationIgnored private var pending = Set<String>()
 
-    static func reset() { names.removeAll(keepingCapacity: true) }
+    static func reset() { shared.names.removeAll(keepingCapacity: true) }
 
     static func name(for path: String) -> String? {
-        if let hit = names[path] { return hit.isEmpty ? nil : hit }
-        let app = NSWorkspace.shared.urlForApplication(toOpen: URL(fileURLWithPath: path))
-        let name =
-            app.map { FileManager.default.displayName(atPath: $0.path) }
-            .map { $0.hasSuffix(".app") ? String($0.dropLast(4)) : $0 } ?? ""
-        if app != nil { names[path] = name }
-        return name.isEmpty ? nil : name
+        if let hit = shared.names[path] { return hit.isEmpty ? nil : hit }
+        shared.lookUp(path)
+        return nil
+    }
+
+    private func lookUp(_ path: String) {
+        guard pending.insert(path).inserted else { return }
+        Task {
+            let name = await Task.detached(priority: .userInitiated) { Self.appName(path) }.value
+            pending.remove(path)
+            names[path] = name
+        }
+    }
+
+    nonisolated private static func appName(_ path: String) -> String {
+        guard let app = NSWorkspace.shared.urlForApplication(toOpen: URL(fileURLWithPath: path)) else { return "" }
+        let name = FileManager.default.displayName(atPath: app.path)
+        return name.hasSuffix(".app") ? String(name.dropLast(4)) : name
     }
 
     /// Apps that can open `url`, default first, deduplicated by bundle id, at most `limit`.

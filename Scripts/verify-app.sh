@@ -6,7 +6,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 APP=${1:-build/Hunch.app}
 APP=$(cd "$APP" && pwd)
-LOG=$(mktemp -d "${TMPDIR:-/tmp}/bs-verify.XXXXXX")
+LOG=$(mktemp -d "${TMPDIR:-/tmp}/hunch-verify.XXXXXX")
 fail=0
 
 # Every Mach-O in the bundle (the executable and the framework binaries).
@@ -24,7 +24,7 @@ if [[ $(/usr/libexec/PlistBuddy -c 'Print :LSBackgroundOnly' "$HELPER_PLIST" 2>/
 
 # S2: license notices ship in the bundle.
 if [[ -s $APP/Contents/Resources/THIRD_PARTY_NOTICES.md && -s $APP/Contents/Resources/LICENSE ]]; then echo "NOTICES_OK"; else echo "NOTICES_MISSING"; fail=1; fi
-# No strings of the dev-only BS_ overrides in the release binary (they are DEBUG-only).
+# No strings of the dev-only HUNCH_ overrides in the release binary (they are DEBUG-only).
 bs=$(strings "$APP/Contents/MacOS/"* "$APP/Contents/Helpers/"*.app/Contents/MacOS/* 2>/dev/null | grep -cE '^HUNCH_(HOVER_ROW|PRESS|INDEX_STATE|MODEL_STATE|HOTKEY_STATE|APPEARANCE|SCREEN|FIRST_RUN)' || true)
 echo "HUNCH_OVERRIDE_STRINGS=$bs"
 # S1: every bundled native library matches its recorded sha256.

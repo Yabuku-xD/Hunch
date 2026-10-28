@@ -118,7 +118,7 @@ private struct QueryBand: View {
             TextField(
                 "Search",
                 text: Binding(get: { model.query }, set: { model.setQuery($0) }),
-                // P21: no prompt under an input method's marked text (same look otherwise).
+                // No prompt under an input method's marked text (same look otherwise).
                 prompt: Text(model.isComposing ? "" : "Apps, files and what's inside them")
                     .foregroundStyle(contrast == .increased ? .secondary : .tertiary)
             )
@@ -254,7 +254,7 @@ private struct ResultsList: View {
         let t = model.theme
         let offset = model.scrollOffset
         let hiddenBelow = model.maxOffset - offset
-        // U4: everything a row shows is read here once and handed down as plain values. Rows are `Equatable` and
+        // Everything a row shows is read here once and handed down as plain values. Rows are `Equatable` and
         // observe nothing of the model, so a ⌘ press, a slip move or an appended batch re-renders only the rows whose
         // values changed (⌘: the gutters, slip move: 2 rows), never the whole list. A hover re-renders no row
         // (`HoverWash`).
@@ -421,7 +421,7 @@ private struct HoverWash: View {
     }
 }
 
-/// One result slot. Takes plain values only (U4) and is compared before its body runs (`.equatable()`); the rail
+/// One result slot. Takes plain values only and is compared before its body runs (`.equatable()`); the rail
 /// row is the one exception that reads the model, through its own `FavoritesRail` view.
 private struct RowView: View, Equatable {
     let row: Row
@@ -516,7 +516,7 @@ private struct RowView: View, Equatable {
         }
     }
 
-    /// The batch-built title line (U6); rows below the first screen and Increase Contrast build it here.
+    /// The batch-built title line; rows below the first screen and Increase Contrast build it here.
     private func text(_ result: SearchResult) -> RowText {
         if let text = row.text, !underline { return text }
         return RowText.make(result, query: query, theme: theme, underline: underline)

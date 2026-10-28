@@ -7,7 +7,7 @@ import HunchCore
 //   hunch-bench --memory      resident memory of a 200k-item index, with the model loaded and unloaded
 //   hunch-bench --content     content indexing: text files/s, OCR, image vectors, video, speech, full-text (Content.swift)
 //   hunch-bench --embed-dump <out.json>  vectors of 20 fixed strings (cross-build equality check, RELEASING.md)
-//   hunch-bench --incremental no-rebuild gates (v3 plan §C): restart, moves, copies, append, new files, journal loss,
+//   hunch-bench --incremental no-rebuild gates: restart, moves, copies, append, new files, journal loss,
 //                            idle, touch (Incremental.swift); exit 1 on a missed target
 //
 // stdout carries exactly the metric lines (key=value); progress and errors go to stderr.

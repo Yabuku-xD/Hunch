@@ -3,7 +3,7 @@ import Foundation
 import HunchCore
 import Synchronization
 
-// `hunch-bench --incremental` (v3 plan §C, I10): proves the index never rebuilds. Runs the real IndexCoordinator
+// `hunch-bench --incremental`: proves the index never rebuilds. Runs the real IndexCoordinator
 // (crawl, FSEvents journal, verify) + ContentIndexPipeline (extract, hash checks, chunk reuse) on a generated tree
 // and counts every file open, extraction, hash, embedding and catalog row write per scenario.
 //
@@ -11,7 +11,7 @@ import Synchronization
 //
 // The tree and the cold index are generated once under <dir> and reused. Embeddings go through counting wrappers:
 // a fast deterministic embedder by default (counts are what the gate checks), the real EmbeddingGemma with
-// --real-model. Exit 1 when any required target misses (S4 gate); `*_strict_ok` lines report the stricter targets.
+// --real-model. Exit 1 when any required target misses; `*_strict_ok` lines report the stricter targets.
 
 /// Counts every document sent to the wrapped embedder.
 final class CountingEmbedder: Embedder {
@@ -86,7 +86,7 @@ private func write(_ path: String, _ s: String) {
     FileManager.default.createFile(atPath: path, contents: Data(s.utf8))
 }
 
-/// Generates the §C tree under `tree` (idempotent: a `.complete` marker skips regeneration).
+/// Generates the test tree under `tree` (idempotent: a `.complete` marker skips regeneration).
 private func generateFixture(tree: String, files: Int, seed: UInt64) {
     let marker = tree + "/../fixture.complete"
     if FileManager.default.fileExists(atPath: marker) { return }
@@ -176,7 +176,7 @@ final class IncStack: Sendable {
         let policy = ContentIndexPipeline.Policy(
             lowPower: { false }, thermalSerious: { false }, onBattery: { false },
             watchdog: { _ in 600 })
-        // K1: the same ContentRuntime SearchBackend.start() builds (no image model: the fixture is text).
+        // The same ContentRuntime SearchBackend.start() builds (no image model: the fixture is text).
         let content = try ContentRuntime(
             directory: state, embedder: contentEmbedder, vectors: vectors, modelURL: nil,
             dimension: embedder.dimension, policy: policy, home: tree)
@@ -626,7 +626,7 @@ func incrementalBench() async -> Int32 {
     return g.misses.isEmpty ? 0 : 1
 }
 
-// MARK: Scenarios 9–14 (§C stricter targets; every one is gated: a miss fails the bench)
+// MARK: Scenarios 9–14 (stricter targets; every one is gated: a miss fails the bench)
 
 private func paragraph(_ r: inout RNG) -> String {
     let p = text(900, &r).replacingOccurrences(of: "\n", with: " ")

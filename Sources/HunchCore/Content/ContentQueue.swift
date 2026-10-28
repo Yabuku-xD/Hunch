@@ -9,9 +9,9 @@ final class ContentQueue {
         /// Text is searchable; chunk vectors still to compute.
         case extracted = 1
         case done = 2
-        /// Dataless (cloud-only) placeholder: names only until a modify event shows it materialized (K2).
+        /// Dataless (cloud-only) placeholder: names only until a modify event shows it materialized.
         case waitingDownload = 3
-        /// Huge/cold file waiting for idle + AC power or `indexNow` (I9).
+        /// Huge/cold file waiting for idle + AC power or `indexNow`.
         case deferred = 4
     }
 
@@ -76,7 +76,7 @@ final class ContentQueue {
         }
     }
 
-    /// K13: statements prepared once per SQL text.
+    /// Statements prepared once per SQL text.
     private var prepared: [String: Statement] = [:]
     private func prep(_ sql: String) throws -> Statement {
         if let s = prepared[sql] { return s }
@@ -87,7 +87,7 @@ final class ContentQueue {
 
     func transaction<T>(_ body: () throws -> T) throws -> T { try db.transaction(body) }
 
-    /// Every queued (item, path), for re-applying the secret rules after they change (K3).
+    /// Every queued (item, path), for re-applying the secret rules after they change.
     func allPaths() -> [(item: UInt32, path: String)] {
         guard let s = try? prep("SELECT DISTINCT item, path FROM cq"), (try? s.bind([])) != nil else { return [] }
         var out: [(item: UInt32, path: String)] = []
@@ -155,7 +155,7 @@ final class ContentQueue {
         textVectors: Int, imageVectors: Int
     )? {
         // INDEXED BY: without stats the planner prefers cq_state (state=2 AND tier), which is nearly every row,
-        // so each lookup scanned the whole queue (~100k rows) and the §C incremental bench crawled for hours.
+        // so each lookup scanned the whole queue (~100k rows) and the incremental bench crawled for hours.
         guard
             let s = try? prep(
                 """
@@ -172,7 +172,7 @@ final class ContentQueue {
         )
     }
 
-    // MARK: Chunk vector cache (I6): exact model input hash → where that vector already lives.
+    // MARK: Chunk vector cache: exact model input hash → where that vector already lives.
 
     func chunkVector(hash: Data) -> (item: UInt32, tier: ContentTier, idx: UInt32)? {
         guard let s = try? prep("SELECT item, tier, idx FROM chunkvec WHERE input_hash=? LIMIT 1"),
@@ -282,7 +282,7 @@ final class ContentQueue {
     }
 
     /// Rows left `extracted` when there is no embedder become done (and back when one appears). Only done rows
-    /// without text vectors go back: rows already embedded stay done, so a relaunch embeds nothing (§C scenario 1).
+    /// without text vectors go back: rows already embedded stay done, so a relaunch embeds nothing.
     func settleExtracted(to state: State) throws {
         if state == .done {
             try db.prepare("UPDATE cq SET state=? WHERE state=?").bind([State.done.rawValue, State.extracted.rawValue])

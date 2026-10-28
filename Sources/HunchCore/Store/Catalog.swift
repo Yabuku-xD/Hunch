@@ -430,7 +430,7 @@ public final class Catalog: Sendable {
     }
 }
 
-// MARK: - v3: identity, stamps, range queries (v3 plan §B I2/I4, K6)
+// MARK: - Identity, stamps, range queries
 
 extension Catalog {
     /// In-place, idempotent migration to schema v3 in one `BEGIN IMMEDIATE`: adds identity/stamp/hash columns,
@@ -470,7 +470,7 @@ extension Catalog {
         try? db.exec("PRAGMA optimize=0x10002")
     }
 
-    /// Identity-aware upsert (I1/I4). Per entry:
+    /// Identity-aware upsert. Per entry:
     /// - known path, same name/kind/stamp ⇒ nothing written (`change == nil`);
     /// - known path, changed ⇒ one UPDATE (`.metadata`); `embedded` survives a stamp backfill of a migrated row;
     /// - unknown path whose `(dev, file_id)` belongs to a row whose old path is gone ⇒ the row is moved

@@ -93,7 +93,7 @@ final class PanelController {
     private var stalledQuits: Set<pid_t> = []
     /// Opens Settings (⌘, and clicks on the band status).
     var onSettings: ((SettingsPane?) -> Void)?
-    /// The model-missing status: onboarding step 4, or Settings › Index once onboarding is complete (U11).
+    /// The model-missing status: onboarding step 4, or Settings › Index once onboarding is complete.
     var onModelSetup: (() -> Void)?
 
     init(engine: any SearchEngine, admin: IndexAdmin?) {
@@ -152,7 +152,7 @@ final class PanelController {
                     self.model.status.update(status, tiers: admin.contentTiers())
                 }
             }
-            // P8: re-run the visible query when the index changes under it, once the user has been idle ≥ 1 s;
+            // Re-run the visible query when the index changes under it, once the user has been idle ≥ 1 s;
             // `refresh()` keeps the selected id.
             let changes = admin.changes()
             changesTask = Task { [weak self] in
@@ -278,7 +278,7 @@ final class PanelController {
         resize()
         hosting?.layoutSubtreeIfNeeded()
         if let hosting { field = Self.findField(in: hosting) }
-        // U11: run one throwaway name query so the engine's fold tables, buckets and the row types are warm before
+        // Run one throwaway name query so the engine's fold tables, buckets and the row types are warm before
         // the first real keystroke; then return to the root state.
         model.prewarmQuery()
         hosting?.layoutSubtreeIfNeeded()
@@ -421,7 +421,7 @@ final class PanelController {
             if item.kind == .setting, let pane = SettingsPanes.url(forPane: item.path) {
                 NSWorkspace.shared.open(pane, configuration: configuration) { _, e in failure(e) }
             } else if item.kind == .app, app == nil {
-                // P3: openApplication also reopens a running app that has no windows (activate() alone does not),
+                // OpenApplication also reopens a running app that has no windows (activate() alone does not),
                 // and works from a fullscreen Space.
                 NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, e in failure(e) }
             } else if let app {
@@ -701,7 +701,7 @@ final class PanelController {
         Measure.shared.keyDown()
         #endif
         let mods = event.modifierFlags.intersection([.command, .control, .option, .shift])
-        // P2: shortcuts by key position on non-Latin layouts (Russian ⌘K = "л" otherwise).
+        // Shortcuts by key position on non-Latin layouts (Russian ⌘K = "л" otherwise).
         let key = ShortcutResolver.key(keyCode: event.keyCode, typed: event.charactersIgnoringModifiers)
 
         if model.chips != nil, handleChipKey(event, mods: mods, key: key) { return true }
@@ -859,7 +859,7 @@ enum HotkeyToggle {
     }
 }
 
-/// P20: key routing while Quick Look is up. Pure, so the table is unit-testable.
+/// Key routing while Quick Look is up. Pure, so the table is unit-testable.
 enum QuickLookKeyRouter {
     enum Route: Equatable { case up, down, open, actions, close, pass }
     static func route(keyCode: UInt16, modifiers: NSEvent.ModifierFlags, key: String) -> Route {
@@ -875,4 +875,4 @@ enum QuickLookKeyRouter {
         return .pass
     }
 }
-// P2: ShortcutResolver lives in HunchCore (Search/ShortcutResolver.swift) so its layout table is unit-tested.
+// ShortcutResolver lives in HunchCore (Search/ShortcutResolver.swift) so its layout table is unit-tested.

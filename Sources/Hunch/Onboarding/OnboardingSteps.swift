@@ -7,7 +7,7 @@ struct OnboardingView: View {
     @Bindable var model: OnboardingModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// M3.11: slide 16 pt + fade, spring 0.35 s bounce 0, interruptible; Reduce Motion: 150 ms crossfade.
+    /// Slide 16 pt + fade, spring 0.35 s bounce 0, interruptible; Reduce Motion: 150 ms crossfade.
     private var stepAnimation: Animation {
         reduceMotion ? .easeInOut(duration: 0.15) : .spring(duration: 0.35, bounce: 0)
     }
@@ -401,7 +401,7 @@ private extension Text {
 
 // MARK: Step 5
 
-/// The chosen chord as live 15 pt keycaps; a real press dips them to 0.94 and back (M3.14).
+/// The chosen chord as live 15 pt keycaps; a real press dips them to 0.94 and back.
 private struct DoneCard: View {
     let model: OnboardingModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

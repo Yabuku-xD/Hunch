@@ -3,13 +3,13 @@ import Darwin
 import Foundation
 import Synchronization
 
-/// Who a file *is*, independent of its path: survives renames and moves on the same volume (v3 plan §B.1).
+/// Who a file *is*, independent of its path: survives renames and moves on the same volume.
 public struct FileIdentity: Sendable, Hashable {
     public var device: UInt64
     public var fileID: UInt64
     /// APFS document id (survives safe-save replace), when the volume tracks one.
     public var documentID: UInt32?
-    /// APFS clone family id. A hint only: equal clone ids alone never prove equal bytes (§B rule 2).
+    /// APFS clone family id. A hint only: equal clone ids alone never prove equal bytes.
     public var cloneID: UInt64?
 
     public init(device: UInt64, fileID: UInt64, documentID: UInt32? = nil, cloneID: UInt64? = nil) {
@@ -96,7 +96,7 @@ public struct ContentHash: Sendable, Hashable {
     }
 }
 
-/// Canonical (NFC) spelling for every path/name key (K5): HFS+/NFD names and NFC queries meet in one form.
+/// Canonical (NFC) spelling for every path/name key: HFS+/NFD names and NFC queries meet in one form.
 public enum PathKey {
     public static func canonical(_ s: String) -> String {
         // Fast path: pure ASCII is already canonical.
@@ -105,7 +105,7 @@ public enum PathKey {
     }
 }
 
-/// K2: never download iCloud/File Provider placeholders. Process-wide, set once.
+/// Never download iCloud/File Provider placeholders. Process-wide, set once.
 public enum Dataless {
     private static let applied: Bool = {
         // IOPOL_TYPE_VFS_MATERIALIZE_DATALESS_FILES = 3, IOPOL_SCOPE_PROCESS = 0, IOPOL_MATERIALIZE_DATALESS_FILES_OFF = 1
@@ -121,7 +121,7 @@ public enum Dataless {
     public static func isDatalessError(_ code: Int32) -> Bool { code == EDEADLK }
 }
 
-/// DEBUG/bench hook: counts content reads and hashed bytes (§C "files re-read", "bytes hashed").
+/// DEBUG/bench hook: counts content reads and hashed bytes.
 public final class FileAccessCounter: Sendable {
     public static let shared = FileAccessCounter()
     private let state = Mutex<(opens: Int, bytesRead: Int64, bytesHashed: Int64, extractions: Int, hashChecks: Int)>(

@@ -1,6 +1,6 @@
 import Foundation
 
-/// One catalog change, for the app's stale-result refresh (P8) and the status line (v3 plan §B.1).
+/// One catalog change, for the app's stale-result refresh and the status line.
 public struct IndexChange: Sendable, Hashable {
     public enum Kind: Sendable, Hashable {
         case added
@@ -31,7 +31,7 @@ public struct IndexChangeBatch: Sendable {
     }
 }
 
-/// Per-volume FSEvents journal position (I3).
+/// Per-volume FSEvents journal position.
 public struct VolumeCursor: Sendable, Codable, Hashable {
     public var uuid: String
     public var device: UInt64

@@ -45,9 +45,9 @@ public struct ChangeBatch: Sendable {
 
 /// FSEvents watcher feeding incremental updates (owner: indexer).
 ///
-/// v3 (K9): kernel-side exclusion paths (`FSEventStreamSetExclusionPaths`, ≤ 8: ~/Library, ~/.Trash, caches …),
+/// Kernel-side exclusion paths (`FSEventStreamSetExclusionPaths`, ≤ 8: ~/Library, ~/.Trash, caches …),
 /// adaptive latency (0.25 s panel visible / 0.5 s hidden; `setLatency` restarts the stream from the last delivered
-/// id, so nothing is lost), NFC paths (K5), and `HistoryDone` passed through so the coordinator can leave
+/// id, so nothing is lost), NFC paths, and `HistoryDone` passed through so the coordinator can leave
 /// `.catchingUp`.
 public final class Watcher: Sendable {
     public let roots: [URL]

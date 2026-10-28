@@ -28,7 +28,7 @@ public struct IndexStatus: Sendable, Equatable {
     public var total: Int
     /// Content progress per tier (T1–T3): files done / known.
     public var content: [ContentTierProgress] = []
-    /// Dataless (cloud-only) files: searchable by name only (K2).
+    /// Dataless (cloud-only) files: searchable by name only.
     public var cloudOnly: Int = 0
     /// Roots and top-level folders the process may not read (EPERM/EACCES, K21).
     public var unreadable: [String] = []
@@ -56,7 +56,7 @@ public struct IndexStatus: Sendable, Equatable {
 /// User-chosen indexing scope, persisted in the catalog's `meta` table (key `settings.index`, JSON).
 public struct IndexSettings: Sendable, Equatable, Codable {
     public var roots: [URL]
-    /// Paths removed from the index (P17): range-deleted, never crawled.
+    /// Paths removed from the index: range-deleted, never crawled.
     public var exclusions: [String]
     /// Read file contents (text, OCR, transcripts, content vectors). Names are always indexed.
     public var contentIndexing: Bool

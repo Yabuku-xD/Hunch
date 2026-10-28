@@ -8,5 +8,4 @@ DerivedData/
 *.gguf
 *.partial
 /dist/
-/u-before-*.png
 *.dSYM/

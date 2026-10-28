@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 /// Routes a file to its extractor and returns text chunks with locations, plus image vectors when a
 /// `MediaEmbedder` is available (owner: media). Never throws: corrupt files come back `.unreadable`.
 public struct ContentReader: Sendable {
-    /// Per-file text read budget (I9): larger text files index their first 64 MB.
+    /// Per-file text read budget: larger text files index their first 64 MB.
     public static let maxTextBytes = 64 << 20
     /// Note on a result that was skipped because the file is a cloud-only placeholder.
     public static let datalessNote = "waitingDownload"
@@ -67,7 +67,7 @@ public struct ContentReader: Sendable {
     public static func tier(for path: String) -> ContentTier? {
         if SecretRules.isSecret(path: path) || SecretRules.isDatabaseSideFile(path) { return nil }
         let ext = (path as NSString).pathExtension.lowercased()
-        // K20: .ts/.mts are TypeScript or MPEG-TS; decide by content (0x47 sync byte every 188 bytes ⇒ video).
+        // .ts/.mts are TypeScript or MPEG-TS; decide by content (0x47 sync byte every 188 bytes ⇒ video).
         if ext == "m4p" || ext == "aax" { return nil }  // K20: protected assets, never readable
         if ext == "ts" || ext == "mts" { return isMPEGTransportStream(path) ? .media : .documents }
         if ext == "pdf" || textExtensions.contains(ext) || htmlExtensions.contains(ext) || richExtensions.contains(ext)
@@ -99,7 +99,7 @@ public struct ContentReader: Sendable {
     }
 
     /// Extracts `path` for `tier`. `pages` limits a tier-2 PDF pass to those (scanned) pages.
-    /// Dataless placeholders are never read (K2): `.waitingDownload` comes back as `.unreadable` with that note.
+    /// Dataless placeholders are never read: `.waitingDownload` comes back as `.unreadable` with that note.
     public func read(path: String, tier: ContentTier, pages: [Int]? = nil) async -> ExtractedContent {
         let url = URL(fileURLWithPath: path)
         let ext = url.pathExtension.lowercased()

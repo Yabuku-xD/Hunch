@@ -143,7 +143,7 @@ public struct ContentPipelineStatus: Sendable, Equatable {
     public var pending: Int
     public var processed: Int
     public var isPaused: Bool
-    /// Dataless (cloud-only) files known to the pipeline: searchable by name only (K2).
+    /// Dataless (cloud-only) files known to the pipeline: searchable by name only.
     public var cloudOnly: Int
 
     public init(pending: Int = 0, processed: Int = 0, isPaused: Bool = false, cloudOnly: Int = 0) {

@@ -581,6 +581,21 @@ final class SearchModel {
         return true
     }
 
+    /// Tab on a folder: search inside it (`in:` the folder). Returns false for any other row.
+    func scopeToSelectedFolder() -> Bool {
+        guard let item = selectedResult?.item, item.kind == .folder else { return false }
+        narrowed = nil
+        setQuery(QueryParser.scoped(to: item.path))
+        return true
+    }
+
+    /// Shift-Tab while the query is only an `in:` scope: the parent folder.
+    func scopeUp() -> Bool {
+        guard narrowed == nil, let parent = QueryParser.parentScope(of: query) else { return false }
+        setQuery(parent)
+        return true
+    }
+
     func widen() -> Bool {
         guard narrowed != nil else { return false }
         narrowed = nil

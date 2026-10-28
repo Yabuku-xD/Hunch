@@ -6,7 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Move to Trash (⌘⌫, or ⌥ on the Exclude action), Get Info (⌘I, or ⌥ on Show in Finder) and Share (⌥ on Open With).
+- Open in Terminal for folders, in Quick Look's place in ⌘K. It uses the terminal that is running, else Ghostty,
+  iTerm2, Warp or WezTerm when installed, else Terminal.
+- Tab on a folder searches inside it (`in:` the folder); ⇧Tab goes up one folder.
+- What you open after typing a query ranks higher the next time you type that query, or one that extends or
+  shortens it. At most 256 queries are kept, in memory and in the index database.
+
 ### Changed
+
+- Settings opens centred on the screen under the pointer, like the Welcome Guide, and a taller pane no longer grows
+  past the bottom of the screen.
 
 - Name rows are 4 pt taller (44 pt; 40 pt on small screens), so a row next to a cut or the selected row no longer
   sits against the glass edge.

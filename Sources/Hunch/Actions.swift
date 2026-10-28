@@ -19,10 +19,19 @@ enum PanelAction: Hashable, Identifiable {
     case exclude
     /// Open With chooser page: one chip per candidate app.
     case openIn(URL)
+    /// ⌥ alternate of Exclude, and ⌘⌫: `NSWorkspace.recycle` (Finder's Put Back still works).
+    case trash
+    /// ⌥ alternate of Show in Finder, and ⌘I: Finder's info window.
+    case getInfo
+    /// ⌥ alternate of Open With: the system share menu.
+    case share
+    /// Folders, in Quick Look's place: the folder in the user's terminal (`TerminalApp.preferred`).
+    case terminal(URL)
 
     var id: String {
         switch self {
         case .openIn(let url): "openIn:" + url.path
+        case .terminal(let url): "terminal:" + url.path
         default: String(describing: self)
         }
     }
@@ -40,8 +49,11 @@ enum PanelAction: Hashable, Identifiable {
         case .copyText: "Copy Text"
         case .copyFile: "Copy File"
         case .exclude: "Exclude from Search"
-        case .openIn(let url):
-            FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
+        case .openIn(let url): TerminalApp.name(url)
+        case .trash: "Move to Trash"
+        case .getInfo: "Get Info"
+        case .share: "Share…"
+        case .terminal(let url): "Open in \(TerminalApp.name(url))"
         }
     }
 
@@ -59,6 +71,10 @@ enum PanelAction: Hashable, Identifiable {
         case .copyFile: "doc.on.clipboard"
         case .exclude: "eye.slash"
         case .openIn: "app"
+        case .trash: "trash"
+        case .getInfo: "info.circle"
+        case .share: "square.and.arrow.up"
+        case .terminal: "terminal"
         }
     }
 
@@ -75,6 +91,10 @@ enum PanelAction: Hashable, Identifiable {
         case .copyText: "t"
         case .exclude: "x"
         case .openIn: nil
+        case .trash: "d"
+        case .getInfo: "i"
+        case .share: "s"
+        case .terminal: "t"
         }
     }
 
@@ -90,7 +110,9 @@ enum PanelAction: Hashable, Identifiable {
         case .forceQuit: ["⌃", "⌥", "⇧", "Q"]
         case .copyText: ["⌥", "⌘", "C"]
         case .copyFile: ["⌥", "⇧", "⌘", "C"]
-        case .exclude, .openIn: []
+        case .trash: ["⌘", "⌫"]
+        case .getInfo: ["⌘", "I"]
+        case .exclude, .openIn, .share, .terminal: []
         }
     }
 
@@ -99,6 +121,9 @@ enum PanelAction: Hashable, Identifiable {
         switch self {
         case .quit: .forceQuit
         case .copyPath: .copyFile
+        case .exclude: .trash
+        case .reveal: .getInfo
+        case .openWith: .share
         default: nil
         }
     }
@@ -107,6 +132,9 @@ enum PanelAction: Hashable, Identifiable {
         switch self {
         case .forceQuit: .quit
         case .copyFile: .copyPath
+        case .trash: .exclude
+        case .getInfo: .reveal
+        case .share: .openWith
         default: nil
         }
     }
@@ -117,7 +145,8 @@ enum PanelAction: Hashable, Identifiable {
     }
 
     /// Chips for a result. Apps: no Open With / Quick Look; Quit only while running, Force Quit in its place once a
-    /// Quit was asked for and the app is still running (`quitStalled`).
+    /// Quit was asked for and the app is still running (`quitStalled`). Folders: the terminal instead of Quick Look
+    /// (⌘Y still previews them).
     @MainActor
     static func chips(
         for result: SearchResult, isPinned: Bool, isRunning: Bool, quitStalled: Bool = false
@@ -126,13 +155,37 @@ enum PanelAction: Hashable, Identifiable {
         var out: [PanelAction] = []
         if result.item.kind != .app { out.append(.openWith) }
         out.append(.reveal)
-        if result.item.kind != .app { out.append(.quickLook) }
+        if result.item.kind == .folder, let terminal = TerminalApp.preferred() {
+            out.append(.terminal(terminal))
+        } else if result.item.kind != .app {
+            out.append(.quickLook)
+        }
         out.append(.copyPath)
         out.append(isPinned ? .unpin : .pin)
         if result.item.kind == .app, isRunning { out.append(quitStalled ? .forceQuit : .quit) }
         if result.match != nil, out.count < 6 { out.append(.copyText) }
         if result.item.kind != .app, out.count < 6 { out.append(.exclude) }
         return Array(out.prefix(6))
+    }
+}
+
+/// The terminal for Open in Terminal: a running one first, then an installed one, then Terminal. Only apps that open a
+/// folder handed to them as a new window there are listed.
+@MainActor
+enum TerminalApp {
+    static let bundleIDs = [
+        "com.mitchellh.ghostty", "com.googlecode.iterm2", "dev.warp.Warp-Stable", "com.github.wez.wezterm",
+        "com.apple.Terminal",
+    ]
+
+    static func preferred() -> URL? {
+        let running = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
+        let ordered = bundleIDs.filter(running.contains) + bundleIDs
+        return ordered.lazy.compactMap { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }.first
+    }
+
+    nonisolated static func name(_ app: URL) -> String {
+        FileManager.default.displayName(atPath: app.path).replacingOccurrences(of: ".app", with: "")
     }
 }
 

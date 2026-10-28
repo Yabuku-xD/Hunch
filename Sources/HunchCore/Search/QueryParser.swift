@@ -155,6 +155,31 @@ public enum QueryParser {
         return out
     }
 
+    /// Tab on a folder result: a query that searches inside `folder` (`in:~/…`, quoted when it has spaces), with a
+    /// trailing space so typing goes straight on.
+    public static func scoped(
+        to folder: String, home: String = FileManager.default.homeDirectoryForCurrentUser.path
+    ) -> String {
+        var p = folder
+        if p == home {
+            p = "~"
+        } else if p.hasPrefix(home + "/") {
+            p = "~" + p.dropFirst(home.count)
+        }
+        return (p.contains(" ") ? "in:\"\(p)\"" : "in:\(p)") + " "
+    }
+
+    /// Shift-Tab: the parent folder's scope when `query` is only one `in:` scope, else nil.
+    public static func parentScope(
+        of query: String, home: String = FileManager.default.homeDirectoryForCurrentUser.path
+    ) -> String? {
+        let parsed = parse(query, home: home)
+        guard parsed.text.isEmpty, parsed.folders.count == 1, parsed.extensions.isEmpty, parsed.kinds.isEmpty,
+            parsed.modifiedSince == nil, let folder = parsed.folders.first, folder != "/"
+        else { return nil }
+        return scoped(to: (folder as NSString).deletingLastPathComponent, home: home)
+    }
+
     static func folder(_ value: String, home: String) -> String {
         var p = value
         if p == "~" {

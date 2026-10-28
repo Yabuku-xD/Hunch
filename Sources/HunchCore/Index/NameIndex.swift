@@ -10,7 +10,8 @@ import Synchronization
 /// Raw score tiers (then divided by `NameIndex.scoreScale`, so scores land roughly in 0...1):
 /// exact 1000 · exact-stem 950 · prefix 800+ · word-boundary prefix 600+ · acronym 450+ ·
 /// fuzzy subsequence 10–300 (gap penalty). Boosts (≤ 180 total, below the 200-point tier gap):
-/// app +80, frecency of opens up to +60 (half-life 7 days, see `Frecency`), modification recency up to +40.
+/// app +80, opens up to +79 (frecency up to +60, half-life 7 days, see `Frecency`; plus opens after the same query,
+/// see `QueryPicks`), modification recency up to +40.
 public final class NameIndex: NameIndexing, Sendable {
     public static let scoreScale: Float = 1300
 
@@ -129,6 +130,7 @@ public final class NameIndex: NameIndexing, Sendable {
     }
 
     private let state = Mutex<Storage>(Storage())
+    private let picks = Mutex(QueryPicks())
     /// K7 alias keys per item (app display/localized names, pinyin). Called outside the lock, at index time only.
     private let aliases: @Sendable (Item) -> [String]
 
@@ -209,6 +211,21 @@ public final class NameIndex: NameIndexing, Sendable {
         }
     }
 
+    /// Records that the user opened `id` after typing `query` (ranked higher for that query from now on).
+    public func recordPick(query: String, id: UInt32) {
+        let key = Self.pickKey(query)
+        picks.withLock { $0.record(key, id) }
+    }
+
+    /// Every recorded pick, to persist; `setQueryPicks` restores them at launch.
+    public var queryPicks: QueryPicks { picks.withLock { $0 } }
+
+    public func setQueryPicks(_ p: QueryPicks) { picks.withLock { $0 = p } }
+
+    static func pickKey(_ query: String) -> String {
+        String(decoding: fold(query.trimmingCharacters(in: .whitespacesAndNewlines)).bytes, as: UTF8.self)
+    }
+
     /// Restores a persisted frecency (launch).
     public func setFrecency(_ id: UInt32, _ f: Frecency) {
         state.withLock { s in
@@ -238,11 +255,14 @@ public final class NameIndex: NameIndexing, Sendable {
         let query = Self.fold(q.trimmingCharacters(in: .whitespacesAndNewlines)).bytes
         guard !query.isEmpty else { return [] }
         let s = state.withLock { $0 }
+        let boosts = picks.withLock { $0.boosts(String(decoding: query, as: UTF8.self)) }
         let now = Date.now.timeIntervalSinceReferenceDate
-        return Self.scan(s, query: query, limit: limit, now: now)
+        return Self.scan(s, query: query, limit: limit, now: now, picks: boosts)
     }
 
-    private static func scan(_ s: Storage, query: [UInt8], limit: Int, now: Double) -> [(id: UInt32, score: Float)] {
+    private static func scan(
+        _ s: Storage, query: [UInt8], limit: Int, now: Double, picks: [UInt32: Float]
+    ) -> [(id: UInt32, score: Float)] {
         let qmask = mask(query)
         let qn = query.count
         // Alias rows share their item's id: collect a little more, then keep each id's best row.
@@ -269,11 +289,14 @@ public final class NameIndex: NameIndexing, Sendable {
                                     if s.kinds[i] == ItemKind.app.rawValue { score += 80 }
                                     let p = Int(s.primary[i])
                                     let f = s.frecency[p]
+                                    var opened: Float = 0
                                     if f > 0 {
                                         let decayed =
                                             Double(f) * exp2(-max(0, now - s.frecencyAt[p]) / Frecency.halfLife)
-                                        score += min(60, 30 * Float(log2(1 + decayed)))
+                                        opened = min(60, 30 * Float(log2(1 + decayed)))
                                     }
+                                    if !picks.isEmpty, let b = picks[s.ids[i]] { opened += b }
+                                    score += min(79, opened)
                                     let ageDays = max(0, now - s.lastUsed[p]) / 86_400
                                     score += Float(40 * exp(-ageDays / 14))
                                     top.offer(score, i)

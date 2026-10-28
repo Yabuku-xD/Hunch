@@ -127,6 +127,34 @@ private func waitUntil(_ timeout: Duration = .seconds(3), _ cond: () async -> Bo
         #expect(abs(idx.frecency(3, at: Date(timeIntervalSinceNow: Frecency.halfLife)) - 0.5) < 1e-3)
     }
 
+    @Test func picksAfterAQueryRankThatQueryHigher() {
+        let items = ["notes", "notebook", "nothing"].enumerated().map { i, n in
+            Item(
+                id: UInt32(i + 1), path: "/d/\(n).txt", name: "\(n).txt", kind: .file,
+                modified: Date(timeIntervalSinceNow: -400 * 86_400))
+        }
+        let idx = NameIndex(items: items)
+        #expect(idx.search("no", limit: 3).first?.id == 1)
+        for _ in 0..<3 { idx.recordPick(query: " No ", id: 3) }
+        #expect(idx.search("no", limit: 3).first?.id == 3)
+        #expect(idx.search("not", limit: 3).first?.id == 3)  // extends the picked query
+        #expect(idx.search("nothin", limit: 1).first?.id == 3)
+        // Another query is not affected, and the picks survive a save and restore.
+        let other = NameIndex(items: items)
+        let data = try? JSONEncoder().encode(idx.queryPicks)
+        other.setQueryPicks((data.flatMap { try? JSONDecoder().decode(QueryPicks.self, from: $0) }) ?? QueryPicks())
+        #expect(other.search("no", limit: 3).first?.id == 3)
+        #expect(other.search("bo", limit: 3).first?.id == 2)
+    }
+
+    @Test func queryPicksStayBounded() {
+        var picks = QueryPicks()
+        for i in 0..<(QueryPicks.capacity + 10) { picks.record("q\(i)", 1) }
+        #expect(picks.count == QueryPicks.capacity)
+        #expect(picks.boosts("q0").isEmpty)
+        #expect(picks.boosts("q\(QueryPicks.capacity + 9)")[1] == 30)
+    }
+
     @Test func backendSuggestionsFavoritesThenRecents() async throws {
         let dir = scratch("suggest")
         let tree = scratch("suggest-tree")

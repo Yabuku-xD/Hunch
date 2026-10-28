@@ -410,7 +410,7 @@ final class FixtureIndexAdmin: IndexAdmin {
     func isPinned(_ item: Item) -> Bool { engine.store.pinnedPaths.contains(item.path) }
     func pin(_ item: Item) { engine.store.pin(item.path) }
     func unpin(_ item: Item) { engine.store.unpin(item.path) }
-    func recordOpen(_ item: Item) { engine.store.recordOpen(item.path) }
+    func recordOpen(_ item: Item, query: String) { engine.store.recordOpen(item.path) }
     func setPanelVisible(_ visible: Bool) {}
     var modelDescription: String { "Not loaded" }
 }

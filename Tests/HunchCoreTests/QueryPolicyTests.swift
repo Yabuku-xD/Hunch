@@ -45,6 +45,19 @@ import Testing
         #expect(!QueryParser.parse("kind:pdf", home: Self.home).matches(png))
     }
 
+    @Test func folderScopeAndParent() {
+        #expect(QueryParser.scoped(to: "/Users/me/Work", home: Self.home) == "in:~/Work ")
+        #expect(QueryParser.scoped(to: "/Users/me/My Stuff", home: Self.home) == "in:\"~/My Stuff\" ")
+        #expect(QueryParser.scoped(to: "/Volumes/X", home: Self.home) == "in:/Volumes/X ")
+        let scoped = QueryParser.scoped(to: "/Users/me/My Stuff/Plans", home: Self.home)
+        let parsed = QueryParser.parse(scoped, home: Self.home)
+        #expect(parsed == ParsedQuery(text: "", folders: ["/Users/me/My Stuff/Plans"]))
+        #expect(QueryParser.parentScope(of: scoped, home: Self.home) == "in:\"~/My Stuff\" ")
+        #expect(QueryParser.parentScope(of: "in:~/Work", home: Self.home) == "in:~ ")
+        #expect(QueryParser.parentScope(of: "in:~/Work report", home: Self.home) == nil)
+        #expect(QueryParser.parentScope(of: "report", home: Self.home) == nil)
+    }
+
     @Test func modifiedWindows() throws {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = try #require(TimeZone(identifier: "UTC"))

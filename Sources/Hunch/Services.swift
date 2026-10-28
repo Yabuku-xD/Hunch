@@ -35,7 +35,8 @@ protocol IndexAdmin: AnyObject {
     func isPinned(_ item: Item) -> Bool
     func pin(_ item: Item)
     func unpin(_ item: Item)
-    func recordOpen(_ item: Item)
+    /// `query`: what was typed before the open ("" from Favorites and Recents).
+    func recordOpen(_ item: Item, query: String)
     func setPanelVisible(_ visible: Bool)
     var modelDescription: String { get }
     /// The meaning model (v4 §2): `ModelStore.shared`, or DEBUG `FixtureModelStore` under `HUNCH_MODEL_STATE`.
@@ -144,7 +145,7 @@ final class BackendIndexAdmin: IndexAdmin {
     func isPinned(_ item: Item) -> Bool { backend.isPinned(item.path) }
     func pin(_ item: Item) { backend.pin(item.path) }
     func unpin(_ item: Item) { backend.unpin(item.path) }
-    func recordOpen(_ item: Item) { backend.recordOpen(item) }
+    func recordOpen(_ item: Item, query: String) { backend.recordOpen(item, query: query) }
     func setPanelVisible(_ visible: Bool) { backend.setPanelVisible(visible) }
     var modelDescription: String {
         guard let url = backend.modelURL else { return "No model: names and contents only" }

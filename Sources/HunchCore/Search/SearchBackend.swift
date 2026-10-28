@@ -206,6 +206,11 @@ public final class SearchBackend: IndexStatusProviding {
             Task.detached(priority: .utility) { try? index.writeSnapshot(snapshot, generation: generation) }
         }
         applyFrecency(catalog)
+        if let json = try? catalog.meta(Self.picksKey), let data = json.data(using: .utf8),
+            let picks = try? JSONDecoder().decode(QueryPicks.self, from: data)
+        {
+            nameIndex.setQueryPicks(picks)
+        }
         Self.log.info("name index ready: \(self.nameIndex.count) items in \(Self.ms(since: t0)) ms")
         reach(.namesLoaded)
 
@@ -670,12 +675,24 @@ public final class SearchBackend: IndexStatusProviding {
         }
     }
 
-    /// Records that the user opened a result (frecency boost now, persisted for the next launch and Recents).
-    public func recordOpen(_ item: Item) {
+    static let picksKey = "queryPicks"
+
+    /// Records that the user opened a result (frecency boost now, persisted for the next launch and Recents). A
+    /// non-empty `query` also ranks the item higher the next time that query is typed (`QueryPicks`).
+    public func recordOpen(_ item: Item, query: String = "") {
         nameIndex.recordOpen(item.id)
+        let picked = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if picked { nameIndex.recordPick(query: query, id: item.id) }
         let catalog = catalogRef.get()
+        let index = nameIndex
         Task.detached(priority: .utility) {
-            do { try catalog?.recordOpen(path: item.path) } catch {
+            do {
+                try catalog?.recordOpen(path: item.path)
+                // The latest picks at write time, so out-of-order tasks still leave the newest set on disk.
+                if picked, let data = try? JSONEncoder().encode(index.queryPicks) {
+                    try catalog?.setMeta(Self.picksKey, String(decoding: data, as: UTF8.self))
+                }
+            } catch {
                 Self.log.error("recordOpen failed: \(String(describing: error), privacy: .public)")
             }
         }

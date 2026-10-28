@@ -433,7 +433,7 @@ final class PanelController {
                 NSWorkspace.shared.open(url, configuration: configuration) { _, e in failure(e) }
             }
         }
-        admin?.recordOpen(item)
+        admin?.recordOpen(item, query: model.query)
         hide(deferOrderOut: true)
     }
 
@@ -454,7 +454,7 @@ final class PanelController {
 
     private func reveal(_ result: SearchResult) {
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: result.item.path)])
-        admin?.recordOpen(result.item)
+        admin?.recordOpen(result.item, query: model.query)
         hide()
     }
 
@@ -577,6 +577,50 @@ final class PanelController {
         model.refresh()
     }
 
+    /// Moves a file or folder to the Trash (Finder's Put Back still works). The FSEvents batch removes it from the
+    /// index; the visible list refreshes as soon as that batch lands.
+    private func trash(_ result: SearchResult) {
+        let item = result.item
+        guard item.kind == .file || item.kind == .folder else { return }
+        let name = DisplayText.name(item)
+        NSWorkspace.shared.recycle([URL(fileURLWithPath: item.path)]) { [weak self] _, error in
+            Task { @MainActor in
+                guard let self else { return }
+                if let error {
+                    NSLog("Hunch: move to Trash failed: %@", String(describing: error))
+                    self.model.status.flash("Couldn't move \(name) to Trash")
+                } else {
+                    self.model.status.flash("Moved \(name) to Trash")
+                    self.lastInput = .now - .seconds(1)
+                }
+            }
+        }
+    }
+
+    /// Finder's info window, through Finder's own "Show Info" service (no Automation permission needed).
+    private func getInfo(_ result: SearchResult) {
+        let board = NSPasteboard(name: NSPasteboard.Name("app.hunch.info"))
+        board.clearContents()
+        board.writeObjects([URL(fileURLWithPath: result.item.path) as NSURL])
+        guard NSPerformService("Finder/Show Info", board) else {
+            model.status.flash("Couldn't open Get Info")
+            return
+        }
+        hide()
+    }
+
+    /// The system share menu, anchored at the slip's trailing end.
+    private func share(_ result: SearchResult) {
+        guard let view = panel.contentView, let span = model.slipSpan else { return }
+        let t = model.theme
+        let top = SeamRoot.margin + t.bandHeight + t.seam + span.lowerBound - model.scrollOffset
+        let height = span.upperBound - span.lowerBound
+        let y = view.isFlipped ? top : view.bounds.height - top - height
+        let anchor = CGRect(x: SeamRoot.margin + t.slabWidth - 120, y: y, width: 1, height: height)
+        let picker = NSSharingServicePicker(items: [URL(fileURLWithPath: result.item.path)])
+        picker.show(relativeTo: anchor, of: view, preferredEdge: view.isFlipped ? .maxY : .minY)  // below the slip
+    }
+
     private func exclude(_ result: SearchResult) {
         guard let admin else { return }
         let item = result.item
@@ -639,6 +683,10 @@ final class PanelController {
         case .copyFile: copyFile(result)
         case .exclude: exclude(result)
         case .openIn(let app): open(result, with: app)
+        case .trash: trash(result)
+        case .getInfo: getInfo(result)
+        case .share: share(result)
+        case .terminal(let app): open(result, with: app)
         }
     }
 
@@ -669,8 +717,8 @@ final class PanelController {
             let caretAtEnd = (editor?.selectedRange().location ?? 0) >= (editor?.string.utf16.count ?? 0)
             guard caretAtEnd || model.isEmptyQuery else { return false }
             return model.moveOnRail(event.keyCode == 123 ? -1 : 1)
-        case (48, []): return model.narrowToSelection()  // Tab
-        case (48, .shift): return model.widen() || true
+        case (48, []): return model.scopeToSelectedFolder() || model.narrowToSelection()  // Tab
+        case (48, .shift): return model.widen() || model.scopeUp() || true
         case (36, []), (76, []): activate(); return true
         case (36, .command), (76, .command):
             if model.selectedRow?.id == .finder || model.isNoResults {
@@ -711,6 +759,16 @@ final class PanelController {
             }
         }
         if mods == [.command, .option], key == "c", let r = model.selectedResult { copyText(r); return true }
+        if mods == .command, event.keyCode == 51, let r = model.selectedResult,  // ⌘⌫
+            r.item.kind == .file || r.item.kind == .folder
+        {
+            trash(r)
+            return true
+        }
+        if mods == .command, key == "i", let r = model.selectedResult, r.item.kind != .setting {
+            getInfo(r)
+            return true
+        }
         if mods == [.command, .option, .shift], key == "c", let r = model.selectedResult { copyFile(r); return true }
         if mods == [.control, .option, .shift], key == "q", let r = model.selectedResult, r.item.kind == .app {
             forceQuitApp(r)
@@ -743,7 +801,8 @@ final class PanelController {
             return true
         default: break
         }
-        if mods.isEmpty, let letter = key.first,
+        // With ⌥ held the chips show their alternates, so the letter picks those (⌥D Move to Trash).
+        if mods.isEmpty || mods == .option, let letter = key.first,
             let action = state.actions.first(where: { $0.mnemonic == letter })
         {
             runChip(action)

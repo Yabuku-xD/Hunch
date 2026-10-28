@@ -272,4 +272,36 @@ struct EngineEmbedderTests {
         let qt = try await clock.measure { _ = try await embedder.embedQueries(["holiday pictures"]) }
         print("warm query: \(qt)")
     }
+
+    @Test(.enabled(if: modelExists)) func indexingContextIsFreedWhenIdle() async throws {
+        let embedder = try await LlamaEmbedder.load(indexingIdle: .milliseconds(300))
+        func footprint() -> Int {
+            var info = task_vm_info_data_t()
+            var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+            let rc = withUnsafeMutablePointer(to: &info) {
+                $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                    task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+                }
+            }
+            return rc == KERN_SUCCESS ? Int(info.phys_footprint) >> 20 : 0
+        }
+        let words = ["invoice", "total", "due", "meeting", "notes", "photo", "beach", "contract", "lease", "tax"]
+        let batch = (0..<64).map { i in
+            (title: "doc\(i).txt", text: (0..<(40 + i * 9)).map { words[($0 * 7 + i) % 10] }.joined(separator: " "))
+        }
+        let first = try await embedder.embedDocuments(batch)
+        #expect(await embedder.holdsIndexingContext)
+        let busy = footprint()
+        // A query in the gap does not keep the indexing context alive.
+        _ = try await embedder.embedQueries(["beach photo"])
+        try await Task.sleep(for: .seconds(1))
+        #expect(await !embedder.holdsIndexingContext)
+        let idle = footprint()
+        print("indexing context: busy=\(busy) MB idle=\(idle) MB")
+        let clock = ContinuousClock()
+        var again: [[Float]] = []
+        let t = try await clock.measure { again = try await embedder.embedDocuments(batch) }
+        print("first batch after release: \(t)")
+        #expect(zip(first, again).allSatisfy { dot($0, $1) > 0.9999 })
+    }
 }

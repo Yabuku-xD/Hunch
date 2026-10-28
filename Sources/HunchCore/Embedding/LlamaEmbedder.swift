@@ -51,6 +51,9 @@ public actor LlamaEmbedder: Embedder {
     public nonisolated let modelDimension: Int
 
     private let runtime: LlamaRuntime
+    /// How long the indexing context outlives the last document batch. Search keeps its own small context.
+    private let indexingIdle: Duration
+    private var documentUse = 0
 
     public static let queryPrefix = "task: search result | query: "
 
@@ -62,7 +65,7 @@ public actor LlamaEmbedder: Embedder {
     }
 
     /// Loads the model synchronously (≈0.4 s). Prefer `load(...)` from async code.
-    public init(modelURL: URL = Paths.modelURL, dimension: Int = 256) throws {
+    public init(modelURL: URL = Paths.modelURL, dimension: Int = 256, indexingIdle: Duration = .seconds(30)) throws {
         guard FileManager.default.fileExists(atPath: modelURL.path) else {
             throw EmbedderError.modelMissing(modelURL.path)
         }
@@ -76,12 +79,15 @@ public actor LlamaEmbedder: Embedder {
         self.dimension = dimension
         self.modelDimension = runtime.outputSize
         self.runtime = runtime
+        self.indexingIdle = indexingIdle
     }
 
     /// Loads off the caller's executor.
     @concurrent
-    public static func load(modelURL: URL = Paths.modelURL, dimension: Int = 256) async throws -> LlamaEmbedder {
-        try LlamaEmbedder(modelURL: modelURL, dimension: dimension)
+    public static func load(
+        modelURL: URL = Paths.modelURL, dimension: Int = 256, indexingIdle: Duration = .seconds(30)
+    ) async throws -> LlamaEmbedder {
+        try LlamaEmbedder(modelURL: modelURL, dimension: dimension, indexingIdle: indexingIdle)
     }
 
     public func embedQueries(_ q: [String]) async throws -> [[Float]] {
@@ -89,13 +95,32 @@ public actor LlamaEmbedder: Embedder {
     }
 
     public func embedDocuments(_ d: [(title: String, text: String)]) async throws -> [[Float]] {
-        try runtime.embed(
-            d.map { Self.documentPrompt(title: $0.title, text: $0.text) }, dimension: dimension, role: .document)
+        try embedRaw(d.map { Self.documentPrompt(title: $0.title, text: $0.text) })
     }
 
     /// Embeds already-templated prompts.
-    public func embedRaw(_ prompts: [String]) async throws -> [[Float]] {
-        try runtime.embed(prompts, dimension: dimension, role: .document)
+    public func embedRaw(_ prompts: [String]) throws -> [[Float]] {
+        defer { scheduleIndexingRelease() }
+        return try runtime.embed(prompts, dimension: dimension, role: .document)
+    }
+
+    /// Whether the indexing context is allocated now.
+    public var holdsIndexingContext: Bool { runtime.holdsDocumentContext }
+
+    /// Frees the indexing context once no document batch has run for `indexingIdle`. Between indexing bursts the
+    /// helper stays loaded for search, and this context is most of its memory beyond the weights.
+    private func scheduleIndexingRelease() {
+        documentUse &+= 1
+        let use = documentUse
+        Task(priority: .background) { [weak self, indexingIdle] in
+            try? await Task.sleep(for: indexingIdle)
+            await self?.releaseIndexingContext(ifUnusedSince: use)
+        }
+    }
+
+    private func releaseIndexingContext(ifUnusedSince use: Int) {
+        guard use == documentUse else { return }
+        runtime.releaseDocumentContext()
     }
 }
 
@@ -212,7 +237,17 @@ final class LlamaRuntime {
         }
     }
 
+    var holdsDocumentContext: Bool { documentSlot != nil }
+
+    func releaseDocumentContext() {
+        autoreleasepool { documentSlot = nil }
+    }
+
     /// Metal objects ggml autoreleases on this (non-main) thread would otherwise outlive the call.
+    ///
+    /// Indexing batches run at normal priority on purpose. Background priority for the helper (or
+    /// `PRIO_DARWIN_BG` per batch) drew 17 % less power but ran 17 % longer, so a 20-batch run used the same energy
+    /// (powermetrics: about 600 J either way); thread QoS alone changed nothing (M-series, October 2026).
     func embed(_ prompts: [String], dimension: Int, role: Role) throws -> [[Float]] {
         try autoreleasepool { try embedInPool(prompts, dimension: dimension, role: role) }
     }

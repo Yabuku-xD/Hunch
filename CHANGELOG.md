@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- The model helper frees its indexing buffers 30 seconds after the last indexing batch and keeps only the small
+  search buffers: 327 → 222 MB between indexing bursts. The next batch rebuilds them in about 1 second.
+
 ## [1.0.2] - 2026-10-27
 
 ### Fixed

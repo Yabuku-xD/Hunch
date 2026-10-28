@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-10-27
+
+### Fixed
+
+- The model helper no longer grows while indexing. Every request it read stayed in memory (1.1 GB after an hour);
+  it now stays flat.
+- The image model (EmbeddingGemma 2 with its vision projector) runs in its own helper process, closed after 2 idle
+  minutes, instead of inside the app, where about 900 MB stayed after it closed.
+- Opening Hunch again while the Welcome Guide is open brings the guide forward instead of opening Settings.
+
+### Changed
+
+- Document embedding uses Metal flash attention and 1024-token batches: about 70 MB less while indexing at the same
+  speed, with the same vectors.
+
 ## [1.0.0] - 2026-10-27
 
 First release of Hunch.
@@ -17,7 +32,6 @@ First release of Hunch.
 - Optional meaning search for text and images with EmbeddingGemma 2 (Q8_0, 865 MB), downloaded on request into
   `~/.hunch/models` with resume and SHA-256 verification. The model runs in a background helper
   (`Contents/Helpers/Hunch Helper.app`) that exits after 5 idle minutes, so the app itself stays at about 68 MB.
-  Images are embedded by a second instance of the helper with the vision projector, closed after 2 idle minutes.
 - Filters: `in:`, `name:`, `ext:`, `kind:` (also a file type, `kind:pdf`) and
   `modified:today|yesterday|week|month|year`.
 - Actions (⌘K): Open, Open With, Show in Finder, Quick Look, Copy Path, pins and recents. Hold ⌥ for Force Quit
@@ -34,4 +48,5 @@ First release of Hunch.
 - Files that look like secrets are indexed by name only.
 - Network access only for the model download you start, the update check and links you click.
 
+[1.0.1]: https://github.com/Yabuku-xD/Hunch/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Yabuku-xD/Hunch/releases/tag/v1.0.0

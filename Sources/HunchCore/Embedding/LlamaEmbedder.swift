@@ -106,7 +106,9 @@ public actor LlamaEmbedder: Embedder {
 /// compute buffers, which are about 4x the small one's.
 final class LlamaRuntime {
     static let maxSequences = 64
-    static let maxBatchTokens = 2048
+    /// One ubatch per batch (an encoder must see each batch whole). 1024 rather than 2048: 40 MB less while
+    /// indexing at the same speed; 512 saves 15 MB more but is 40 % slower (64 documents, M-series, October 2026).
+    static let maxBatchTokens = 1024
     static let maxInputTokens = 512
     static let maxQuerySequences = 4
     /// Search queries are a few words; longer ones are cut here like documents are cut at `maxInputTokens`.

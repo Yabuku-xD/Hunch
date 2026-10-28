@@ -173,11 +173,14 @@ final class Updater {
     }
 
     /// A detached shell waits for this process to exit (the single-instance lock), then opens the new bundle.
+    ///
+    /// `open -n`: for a moment after the process exits, Launch Services still lists it as running, and a plain `open`
+    /// sends the reopen to that dead instance (error -600) instead of launching, so the app quit and stayed closed.
     private static func relaunch(_ bundle: URL) {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/sh")
         p.arguments = [
-            "-c", "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; /usr/bin/open \"$2\"", "sh",
+            "-c", "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; /usr/bin/open -n \"$2\"", "sh",
             String(ProcessInfo.processInfo.processIdentifier), bundle.path,
         ]
         try? p.run()

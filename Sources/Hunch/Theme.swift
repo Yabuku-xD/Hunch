@@ -42,12 +42,12 @@ struct Theme: Equatable, Sendable {
 
     static let large = Theme(
         slabWidth: 720, resultsHeight: 456, bandHeight: 52, outerRadius: 22, padding: 12, gutter: 24, leading: 44,
-        icon: 32, proof: 32, iconGap: 12, nameContent: 40, evidenceContent: 56, titleSize: 14, querySize: 21,
+        icon: 32, proof: 32, iconGap: 12, nameContent: 44, evidenceContent: 56, titleSize: 14, querySize: 21,
         chipHeight: 30, footerHeight: 28)
 
     static let compact = Theme(
         slabWidth: 680, resultsHeight: 392, bandHeight: 48, outerRadius: 20, padding: 10, gutter: 22, leading: 40,
-        icon: 28, proof: 28, iconGap: 10, nameContent: 36, evidenceContent: 52, titleSize: 13.5, querySize: 20,
+        icon: 28, proof: 28, iconGap: 10, nameContent: 40, evidenceContent: 52, titleSize: 13.5, querySize: 20,
         chipHeight: 28, footerHeight: 26)
 
     /// The same tokens with a shorter results area (`PanelLayout` step 4).

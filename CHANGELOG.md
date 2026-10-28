@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Name rows are 4 pt taller (44 pt; 40 pt on small screens), so a row next to a cut or the selected row no longer
+  sits against the glass edge.
+
 ## [1.1.0] - 2026-10-27
 
 ### Added

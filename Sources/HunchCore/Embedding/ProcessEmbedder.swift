@@ -10,6 +10,7 @@ public actor ProcessEmbedder: Embedder {
     public nonisolated let modelURL: URL
     public nonisolated let dimension: Int
     private nonisolated let helper: URL
+    private nonisolated let arguments: [String]
     private nonisolated let io = DispatchQueue(label: "hunch.embedder.io")
     private var link: Link?
 
@@ -47,16 +48,26 @@ public actor ProcessEmbedder: Embedder {
 
     /// Starts the helper and waits until the model is loaded (it fails with the helper's `EmbedderError`).
     public static func launch(helper: URL, modelURL: URL, dimension: Int) async throws -> ProcessEmbedder {
-        let e = ProcessEmbedder(helper: helper, modelURL: modelURL, dimension: dimension)
+        try await launch(
+            helper: helper, arguments: [modelURL.path, String(dimension)], modelURL: modelURL, dimension: dimension)
+    }
+
+    static func launch(helper: URL, arguments: [String], modelURL: URL, dimension: Int) async throws -> ProcessEmbedder
+    {
+        let e = ProcessEmbedder(helper: helper, arguments: arguments, modelURL: modelURL, dimension: dimension)
         try await e.connect()
         return e
     }
 
-    private init(helper: URL, modelURL: URL, dimension: Int) {
+    private init(helper: URL, arguments: [String], modelURL: URL, dimension: Int) {
         self.helper = helper
+        self.arguments = arguments
         self.modelURL = modelURL
         self.dimension = dimension
     }
+
+    /// The running helper's pid (tests).
+    var helperPID: Int32? { link?.process.processIdentifier }
 
     public func embedQueries(_ q: [String]) async throws -> [[Float]] {
         try await request(EmbedderWire.encodeQueries(q))
@@ -67,11 +78,11 @@ public actor ProcessEmbedder: Embedder {
     }
 
     private func connect() async throws {
-        let (helper, model, dimension) = (self.helper, modelURL, self.dimension)
+        let (helper, arguments) = (self.helper, self.arguments)
         link = try await onIO { () throws -> Link in
             let process = Process()
             process.executableURL = helper
-            process.arguments = [model.path, String(dimension)]
+            process.arguments = arguments
             let stdin = Pipe()
             let stdout = Pipe()
             process.standardInput = stdin
@@ -84,7 +95,7 @@ public actor ProcessEmbedder: Embedder {
         }
     }
 
-    private func request(_ body: Data) async throws -> [[Float]] {
+    func request(_ body: Data) async throws -> [[Float]] {
         if link == nil || link?.process.isRunning == false {
             link = nil
             try await connect()
@@ -92,7 +103,7 @@ public actor ProcessEmbedder: Embedder {
         guard let link else { throw EmbedderError.modelLoadFailed(helper.path) }
         do {
             return try await onIO {
-                try link.input.write(contentsOf: body)
+                try EmbedderWire.writeAll(link.input, body)
                 return try EmbedderWire.readVectors(link.output)
             }
         } catch let e as EmbedderError {
@@ -111,13 +122,40 @@ public actor ProcessEmbedder: Embedder {
     }
 }
 
-/// The helper protocol, little-endian. Request: op (u8: 1 queries, 2 documents), count (u32), then per item one
-/// string (queries) or two (title, text), each a u32 byte length + UTF-8. Reply: status u8 0 + count u32 + width u32
+/// The image model (EmbeddingGemma 2 with its vision projector) in the same helper, started with `--image`. In the
+/// app the projector's weights and llama.cpp's buffers stayed after closing it (about 900 MB measured after indexing
+/// photos); in a helper they go away when it exits, which `ManagedMediaEmbedder` causes by dropping it when idle.
+public struct ProcessImageEmbedder: ImageEmbedding {
+    private let channel: ProcessEmbedder
+
+    public static func launch(
+        helper: URL, modelURL: URL, projectorURL: URL, dimension: Int
+    ) async throws
+        -> ProcessImageEmbedder
+    {
+        let channel = try await ProcessEmbedder.launch(
+            helper: helper, arguments: ["--image", modelURL.path, projectorURL.path, String(dimension)],
+            modelURL: modelURL, dimension: dimension)
+        return ProcessImageEmbedder(channel: channel)
+    }
+
+    public func embedImage(_ image: RGBImage) async throws -> [Float] {
+        guard let vector = try await channel.request(EmbedderWire.encodeImage(image)).first else {
+            throw MediaEmbedderError.encodeFailed(-1)
+        }
+        return vector
+    }
+}
+
+/// The helper protocol, little-endian. Request: op (u8: 1 queries, 2 documents, 3 image), count (u32), then per item
+/// one string (queries), two (title, text), or width u32 + height u32 + RGB bytes (image); strings are a u32 byte
+/// length + UTF-8. Reply: status u8 0 + count u32 + width u32
 /// + count×width f32, or status 1 + error. Handshake after load: 0 + model width u32, or 1 + error. Error: code u32,
 /// two i32 values, message (u32 length + UTF-8).
 public enum EmbedderWire {
     static let opQueries: UInt8 = 1
     static let opDocuments: UInt8 = 2
+    static let opImage: UInt8 = 3
 
     public static func encodeQueries(_ q: [String]) -> Data {
         var d = Data([opQueries])
@@ -136,15 +174,35 @@ public enum EmbedderWire {
         return d
     }
 
+    /// One image: count 1, width, height, then width × height × 3 bytes.
+    public static func encodeImage(_ image: RGBImage) -> Data {
+        var d = Data([opImage])
+        append(UInt32(1), to: &d)
+        append(UInt32(image.width), to: &d)
+        append(UInt32(image.height), to: &d)
+        d.append(contentsOf: image.bytes)
+        return d
+    }
+
     /// One request, or nil at end of input.
-    public static func readRequest(_ h: FileHandle) throws -> (queries: [String]?, documents: [(String, String)]?)? {
+    public static func readRequest(
+        _ h: FileHandle
+    ) throws -> (
+        queries: [String]?, documents: [(String, String)]?, image: RGBImage?
+    )? {
         guard let op = try readExactly(h, 1, eofOK: true)?.first else { return nil }
         let n = Int(try readU32(h))
         switch op {
         case opQueries:
-            return (try (0..<n).map { _ in try readString(h) }, nil)
+            return (try (0..<n).map { _ in try readString(h) }, nil, nil)
         case opDocuments:
-            return (nil, try (0..<n).map { _ in (try readString(h), try readString(h)) })
+            return (nil, try (0..<n).map { _ in (try readString(h), try readString(h)) }, nil)
+        case opImage where n == 1:
+            let width = Int(try readU32(h))
+            let height = Int(try readU32(h))
+            guard width > 0, height > 0, width * height <= 1 << 26 else { throw EmbedderError.decodeFailed(-2) }
+            guard let bytes = try readExactly(h, width * height * 3) else { throw EmbedderError.decodeFailed(-1) }
+            return (nil, nil, RGBImage(width: width, height: height, bytes: [UInt8](bytes)))
         default:
             throw EmbedderError.decodeFailed(-2)
         }
@@ -153,7 +211,7 @@ public enum EmbedderWire {
     public static func writeHandshake(_ h: FileHandle, width: Int) throws {
         var d = Data([0])
         append(UInt32(width), to: &d)
-        try h.write(contentsOf: d)
+        try writeAll(h, d)
     }
 
     public static func writeVectors(_ h: FileHandle, _ v: [[Float]]) throws {
@@ -161,7 +219,7 @@ public enum EmbedderWire {
         append(UInt32(v.count), to: &d)
         append(UInt32(v.first?.count ?? 0), to: &d)
         for row in v { row.withUnsafeBytes { d.append(contentsOf: $0) } }
-        try h.write(contentsOf: d)
+        try writeAll(h, d)
     }
 
     public static func writeError(_ h: FileHandle, _ e: EmbedderError) throws {
@@ -180,7 +238,7 @@ public enum EmbedderWire {
         append(UInt32(bitPattern: a), to: &d)
         append(UInt32(bitPattern: b), to: &d)
         append(text, to: &d)
-        try h.write(contentsOf: d)
+        try writeAll(h, d)
     }
 
     static func readHandshake(_ h: FileHandle) throws {
@@ -239,16 +297,34 @@ public enum EmbedderWire {
     }
 
     /// Exactly `n` bytes; nil on end of input before the first byte when `eofOK`, else an error.
+    /// Plain read(2): `FileHandle.read` returns autoreleased NSData, and the helper's request loop runs on a
+    /// cooperative thread whose pool never drains, so every request leaked its bytes (1.1 GB after an hour of
+    /// indexing).
     private static func readExactly(_ h: FileHandle, _ n: Int, eofOK: Bool = false) throws -> Data? {
-        var out = Data()
-        out.reserveCapacity(n)
-        while out.count < n {
-            guard let chunk = try h.read(upToCount: n - out.count), !chunk.isEmpty else {
-                if out.isEmpty, eofOK { return nil }
+        var out = Data(count: n)
+        var got = 0
+        while got < n {
+            let r = out.withUnsafeMutableBytes { read(h.fileDescriptor, $0.baseAddress! + got, n - got) }
+            if r < 0, errno == EINTR { continue }
+            guard r > 0 else {
+                if got == 0, eofOK { return nil }
                 throw EmbedderError.decodeFailed(-1)
             }
-            out.append(chunk)
+            got += r
         }
         return out
+    }
+
+    /// All of `d` with write(2), for the same reason as `readExactly`.
+    static func writeAll(_ h: FileHandle, _ d: Data) throws {
+        try d.withUnsafeBytes { buf in
+            var sent = 0
+            while sent < buf.count {
+                let w = write(h.fileDescriptor, buf.baseAddress! + sent, buf.count - sent)
+                if w < 0, errno == EINTR { continue }
+                guard w > 0 else { throw EmbedderError.decodeFailed(-1) }
+                sent += w
+            }
+        }
     }
 }

@@ -29,7 +29,13 @@ public actor ManagedMediaEmbedder: ImageEmbedding {
     /// The model + `projectorURL` (nil = the projector `ModelStore` resolves).
     public static func standard(modelURL: URL, projectorURL: URL? = nil, dimension: Int = 256) -> ManagedMediaEmbedder {
         ManagedMediaEmbedder {
-            try await MediaEmbedder.load(modelURL: modelURL, projectorURL: projectorURL, dimension: dimension)
+            if let helper = ProcessEmbedder.helperURL,
+                let projector = projectorURL ?? Paths.resolveProjector(for: modelURL)
+            {
+                return try await ProcessImageEmbedder.launch(
+                    helper: helper, modelURL: modelURL, projectorURL: projector, dimension: dimension)
+            }
+            return try await MediaEmbedder.load(modelURL: modelURL, projectorURL: projectorURL, dimension: dimension)
         }
     }
 

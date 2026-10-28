@@ -98,7 +98,7 @@ vectors.
 | CPU and memory added by hovering rows | 0 % and 0.0 MB |
 | Memory, idle (model not loaded) | 68 MB |
 | Memory, searching by meaning (app + model helper) | 69 + 220 MB |
-| Memory, indexing (app + model helper) | 69 + 370 MB |
+| Memory, indexing (app + model helper) | 69 + 340 MB |
 | Memory after the model unloads | 69 MB (the helper exits) |
 | Crawl throughput | 39,700 items/s |
 | Document chunks embedded | 779 /s |
@@ -134,7 +134,7 @@ whether or not you use another launcher. This table makes no claims about other 
   signature.
 - **Does it upload my files?** No.
 - **Disk and memory?** About 68 MB at rest. Searching by meaning starts a helper process inside the app ("Hunch Helper", about
-  220 MB, 370 MB while indexing) that exits after 5 idle minutes. The index size depends on your files.
+  220 MB, 340 MB while indexing) that exits after 5 idle minutes. The index size depends on your files.
 - **Why the Q8_0 model and not a smaller quant?** We compared every EmbeddingGemma 2 GGUF on Hugging Face against
   BF16 with `Scripts/quant-eval.py` (50 queries, 400 documents, October 2026). Q8_0 (ggml-org and Unsloth, same
   weights) keeps 97.8 % of each query's top 10 and 100 % of top hits. The best smaller one, Unsloth UD-Q6_K_XL

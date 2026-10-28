@@ -17,6 +17,7 @@ First release of Hunch.
 - Optional meaning search for text and images with EmbeddingGemma 2 (Q8_0, 865 MB), downloaded on request into
   `~/.hunch/models` with resume and SHA-256 verification. The model runs in a background helper
   (`Contents/Helpers/Hunch Helper.app`) that exits after 5 idle minutes, so the app itself stays at about 68 MB.
+  Images are embedded by a second instance of the helper with the vision projector, closed after 2 idle minutes.
 - Filters: `in:`, `name:`, `ext:`, `kind:` (also a file type, `kind:pdf`) and
   `modified:today|yesterday|week|month|year`.
 - Actions (⌘K): Open, Open With, Show in Finder, Quick Look, Copy Path, pins and recents. Hold ⌥ for Force Quit

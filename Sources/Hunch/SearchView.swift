@@ -25,14 +25,7 @@ struct SeamRoot: View {
                 ZStack(alignment: .topTrailing) {
                     SeamContent(model: model, controller: controller, chipCarve: chipCarve)
                         .frame(width: t.slabWidth, height: model.panelHeight, alignment: .top)
-                        .glassEffect(
-                            .regular,
-                            in: SeamPath(
-                                width: t.slabWidth, band: t.bandHeight, seam: t.seam, height: model.panelHeight,
-                                outer: t.outerRadius, cut: t.cutRadius, hasResults: model.hasResults,
-                                hasSlip: slip != nil, slipTop: slip?.lowerBound ?? 0, slipBottom: slip?.upperBound ?? 0,
-                                chipCarve: chipCarve, footer: model.footerHeight)
-                        )
+                        .glassEffect(.regular, in: seamPath(slip: slip, chipCarve: chipCarve))
                         .glassEffectID("slab", in: glass)
                     if let chips = model.chips, let slip {
                         ChipStrip(state: chips, theme: t, namespace: glass) { controller.runChip($0) }
@@ -47,9 +40,27 @@ struct SeamRoot: View {
                 .frame(width: t.slabWidth, height: model.panelHeight, alignment: .topLeading)
                 .padding(Self.margin)
                 .allowsHitTesting(false)
+            if model.displayScale < 2 {
+                // On a 1x display the glass rim is a 1-pixel line that refracts the wallpaper, so its corners step
+                // visibly. A 1 pt antialiased hairline centred on the edge covers the steps; 2x screens do not need it.
+                seamPath(slip: slip, chipCarve: chipCarve)
+                    .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                    .frame(width: t.slabWidth, height: model.panelHeight)
+                    .padding(Self.margin)
+                    .allowsHitTesting(false)
+            }
         }
         .environment(\.layoutDirection, .leftToRight)
         .debugAccessibilityOverrides()
+    }
+
+    private func seamPath(slip: ClosedRange<CGFloat>?, chipCarve: CGFloat) -> SeamPath {
+        let t = model.theme
+        return SeamPath(
+            width: t.slabWidth, band: t.bandHeight, seam: t.seam, height: model.panelHeight,
+            outer: t.outerRadius, cut: t.cutRadius, hasResults: model.hasResults,
+            hasSlip: slip != nil, slipTop: slip?.lowerBound ?? 0, slipBottom: slip?.upperBound ?? 0,
+            chipCarve: chipCarve, footer: model.footerHeight)
     }
 
     /// Slip edges in slab coordinates, scrolled; nil when nothing is selected or the list is hidden.

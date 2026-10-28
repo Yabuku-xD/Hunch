@@ -12,6 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- On 1x displays (most non-Apple monitors), the panel's corners no longer look stepped. A 1 pt antialiased
+  hairline now covers the glass rim there; Retina screens are unchanged.
+
 - Update and Relaunch opens the new version again. Hunch quit and stayed closed: Launch Services still listed the
   old process for a moment and sent the reopen to it instead of launching.
 
